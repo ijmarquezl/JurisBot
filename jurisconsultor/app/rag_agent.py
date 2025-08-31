@@ -1,0 +1,136 @@
+import os
+import requests
+import json
+import inspect
+from typing import Optional, List
+from app.utils import get_postgres_conn, generate_embedding
+from app import tools
+
+LLM_URL = os.getenv("LLM_URL")
+
+# --- RAG-related functions (existing logic) ---
+
+def find_relevant_documents(query_embedding, top_k=3):
+    """Finds the most relevant document chunks from the database."""
+    try:
+        conn = get_postgres_conn()
+        cur = conn.cursor()
+        embedding_str = str(query_embedding.tolist())
+        cur.execute(
+            "SELECT content, source FROM documents ORDER BY embedding <-> %s LIMIT %s;",
+            (embedding_str, top_k)
+        )
+        results = cur.fetchall()
+        cur.close()
+        conn.close()
+        return results
+    except Exception as e:
+        print(f"An error occurred during document retrieval: {e}")
+        return []
+
+def answer_with_rag(question: str) -> str:
+    """Answers a question using the RAG pipeline."""
+    question_embedding = generate_embedding(question)
+    relevant_docs = find_relevant_documents(question_embedding)
+    if not relevant_docs:
+        return "No se encontraron documentos relevantes para responder a su pregunta."
+    
+    context = "\n".join([f"Fuente: {source}\nContenido: {content}" for content, source in relevant_docs])
+    prompt = f"Contexto: {context}\n\nPregunta: {question}\n\nRespuesta:"
+    
+    return call_llm(prompt)
+
+# --- Generic LLM Call ---
+
+def call_llm(prompt: str, json_format: bool = False) -> str:
+    """Generic function to call the LLM."""
+    if not LLM_URL:
+        raise ValueError("LLM_URL environment variable not set.")
+    try:
+        payload = {"model": "llama3", "prompt": prompt, "stream": False}
+        if json_format:
+            payload["format"] = "json"
+            
+        response = requests.post(
+            f"{LLM_URL}/api/generate",
+            json=payload
+        )
+        response.raise_for_status()
+        return response.json()["response"]
+    except requests.exceptions.RequestException as e:
+        print(f"An error occurred while querying the LLM: {e}")
+        return f"Error: No se pudo obtener una respuesta del modelo de lenguaje. {e}"
+
+# --- New Agent Logic ---
+
+def get_tools_prompt():
+    """Generates the tools prompt from the functions in the tools module."""
+    prompt = """
+You have access to the following tools. You must respond with a JSON object indicating which tool to use, or if you should use the RAG system.
+    The JSON object must have a "tool" key and an "args" key.
+    
+    Available tools:
+    """
+    for name, func in inspect.getmembers(tools, inspect.isfunction):
+        if name.startswith('_') or name == 'set_auth_token':
+            continue
+        prompt += f"- Tool: {name}\n  Description: {inspect.getdoc(func)}\n"
+    
+    prompt += """
+    - Tool: answer_with_rag
+      Description: Use this tool for general questions, legal inquiries, or any question that requires information from the knowledge base. 
+      Args:
+          question (str): The user's original question.
+    
+    If you decide to use a tool, respond with a JSON object like this:
+    {"tool": "tool_name", "args": {"arg1": "value1", "arg2": "value2"}}
+    
+    If the user's query is a general question, use the RAG tool like this:
+    {"tool": "answer_with_rag", "args": {"question": "the user question"}}
+    """
+    return prompt
+
+def run_agent(user_query: str, auth_token: str, history: Optional[List[str]] = None) -> str:
+    """The main function to run the conversational agent."""
+    tools.set_auth_token(auth_token) # Set the token for the tools module to use
+
+    # 1. Construct the prompt for the LLM to choose a tool
+    tools_prompt = get_tools_prompt()
+    
+    history_str = ""
+    if history:
+        history_str = "\n".join(history) + "\n"
+        
+    decision_prompt = f"{tools_prompt}\n\nConversation History:\n{history_str}User Query: \"{user_query}\"\n\nJSON response:"
+
+    # 2. Call the LLM to get its decision
+    llm_decision_str = call_llm(decision_prompt, json_format=True)
+    print(f"LLM Decision: {llm_decision_str}")
+
+    # 3. Parse the decision and dispatch to the correct tool or RAG
+    try:
+        # Extract the JSON part from the LLM's response
+        start_index = llm_decision_str.find('{')
+        end_index = llm_decision_str.rfind('}')
+        if start_index != -1 and end_index != -1:
+            json_str = llm_decision_str[start_index:end_index+1]
+            decision = json.loads(json_str)
+        else:
+            # If no JSON is found, fallback to RAG
+            return answer_with_rag(user_query)
+
+        tool_name = decision.get("tool")
+        args = decision.get("args", {})
+
+        if tool_name == "answer_with_rag":
+            return answer_with_rag(**args)
+        elif hasattr(tools, tool_name):
+            tool_function = getattr(tools, tool_name)
+            return tool_function(**args)
+        else:
+            return "Error: The model chose a tool that does not exist."
+
+    except (json.JSONDecodeError, AttributeError, TypeError) as e:
+        print(f"Error parsing LLM decision or calling tool: {e}")
+        # If parsing fails, fall back to RAG or a default response
+        return answer_with_rag(user_query)

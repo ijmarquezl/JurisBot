@@ -1,0 +1,17 @@
+fastapi
+uvicorn
+sentence-transformers
+pymongo
+psycopg2-binary
+python-dotenv
+requests
+beautifulsoup4
+numpy
+torch
+pypdf
+python-jose[cryptography]
+passlib==1.7.4
+bcrypt==4.0.1
+python-multipart
+pydantic==2.8.2
+pydantic-core==2.20.1
