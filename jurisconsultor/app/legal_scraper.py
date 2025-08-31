@@ -1,26 +1,35 @@
 import os
 import glob
+import argparse
 from pypdf import PdfReader
-from app.utils import get_mongo_client, get_postgres_conn, generate_embedding
+from app.utils import get_mongo_client, get_public_db_conn, get_private_db_conn, generate_embedding
 
-PDF_DIRECTORY = "documentos_legales"
-
-def process_and_store_documents():
+def process_and_store_documents(pdf_directory: str, db_type: str):
     """
-    Processes and stores legal documents from PDF files.
+    Processes and stores legal documents from PDF files into the specified database.
+    
+    Args:
+        pdf_directory (str): The path to the directory containing the PDF files.
+        db_type (str): The type of database to use ('public' or 'private').
     """
     try:
         # Get database connections
         mongo_client = get_mongo_client()
         db = mongo_client.jurisconsultor
-        documents_collection = db.documents
+        documents_collection = db.documents # Consider separating this by company in the future
 
-        conn = get_postgres_conn()
+        if db_type == 'public':
+            conn = get_public_db_conn()
+        elif db_type == 'private':
+            conn = get_private_db_conn()
+        else:
+            raise ValueError("Invalid db_type specified. Must be 'public' or 'private'.")
+            
         cur = conn.cursor()
 
-        pdf_files = glob.glob(os.path.join(PDF_DIRECTORY, "*.pdf"))
+        pdf_files = glob.glob(os.path.join(pdf_directory, "*.pdf"))
         if not pdf_files:
-            print(f"No PDF files found in the '{PDF_DIRECTORY}' directory.")
+            print(f"No PDF files found in the '{pdf_directory}' directory.")
             return
 
         for pdf_path in pdf_files:
@@ -54,7 +63,8 @@ def process_and_store_documents():
                 mongo_doc = {
                     "source": source_name,
                     "chunk_index": i,
-                    "postgres_id": document_id
+                    "postgres_id": document_id,
+                    "db_type": db_type # Add db_type to metadata
                 }
                 documents_collection.insert_one(mongo_doc)
 
@@ -68,4 +78,10 @@ def process_and_store_documents():
         print(f"An error occurred: {e}")
 
 if __name__ == "__main__":
-    process_and_store_documents()
+    parser = argparse.ArgumentParser(description="Process PDF documents and store them in a database.")
+    parser.add_argument("directory", type=str, help="The path to the directory containing the PDF files.")
+    parser.add_argument("db_type", type=str, choices=['public', 'private'], help="The type of database to use ('public' or 'private').")
+    
+    args = parser.parse_args()
+    
+    process_and_store_documents(args.directory, args.db_type)
