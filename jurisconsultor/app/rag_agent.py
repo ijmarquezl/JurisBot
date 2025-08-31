@@ -3,7 +3,7 @@ import requests
 import json
 import inspect
 from typing import Optional, List
-from app.utils import get_postgres_conn, generate_embedding
+from app.utils import get_public_db_conn, generate_embedding
 from app import tools
 
 LLM_URL = os.getenv("LLM_URL")
@@ -13,7 +13,7 @@ LLM_URL = os.getenv("LLM_URL")
 def find_relevant_documents(query_embedding, top_k=3):
     """Finds the most relevant document chunks from the database."""
     try:
-        conn = get_postgres_conn()
+        conn = get_public_db_conn()
         cur = conn.cursor()
         embedding_str = str(query_embedding.tolist())
         cur.execute(

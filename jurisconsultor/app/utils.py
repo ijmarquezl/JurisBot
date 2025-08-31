@@ -25,13 +25,22 @@ def get_mongo_client():
         raise ValueError("MONGO_URI environment variable not set.")
     return MongoClient(mongo_uri)
 
-def get_postgres_conn():
+def get_private_db_conn():
     """
-    Returns a PostgreSQL connection object.
+    Returns a connection to the private PostgreSQL database.
     """
-    postgres_uri = os.getenv("POSTGRES_URI")
+    postgres_uri = os.getenv("PRIVATE_POSTGRES_URI")
     if not postgres_uri:
-        raise ValueError("POSTGRES_URI environment variable not set.")
+        raise ValueError("PRIVATE_POSTGRES_URI environment variable not set.")
+    return psycopg2.connect(postgres_uri)
+
+def get_public_db_conn():
+    """
+    Returns a connection to the public PostgreSQL database.
+    """
+    postgres_uri = os.getenv("PUBLIC_POSTGRES_URI")
+    if not postgres_uri:
+        raise ValueError("PUBLIC_POSTGRES_URI environment variable not set.")
     return psycopg2.connect(postgres_uri)
 
 def generate_embedding(text):
