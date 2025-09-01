@@ -65,31 +65,48 @@ def call_llm(prompt: str, json_format: bool = False) -> str:
 
 def get_tools_prompt():
     """Generates the tools prompt from the functions in the tools module."""
-    prompt = """
-You have access to the following tools. You must respond with a JSON object indicating which tool to use, or if you should use the RAG system.
-    The JSON object must have a "tool" key and an "args" key.
-
-    Important: When using a tool that requires a 'project_name', you must use the exact project name as it appears in the conversation history or a previous tool's output. Do not rephrase or translate the project name.
-
-    Available tools:
-    """
+    
+    tools_description = ""
     for name, func in inspect.getmembers(tools, inspect.isfunction):
         if name.startswith('_') or name == 'set_auth_token':
             continue
-        prompt += f"- Tool: {name}\n  Description: {inspect.getdoc(func)}\n"
-    
-    prompt += """
-    - Tool: answer_with_rag
-      Description: Use this tool for general questions, legal inquiries, or any question that requires information from the knowledge base. 
-      Args:
-          question (str): The user's original question.
-    
-    If you decide to use a tool, respond with a JSON object like this:
-    {"tool": "tool_name", "args": {"arg1": "value1", "arg2": "value2"}}
-    
-    If the user's query is a general question, use the RAG tool like this:
-    {"tool": "answer_with_rag", "args": {"question": "the user question"}}
-    """
+        tools_description += f"- Tool: {name}\n  Description: {inspect.getdoc(func)}\n"
+
+    prompt = f"""
+You have access to the following tools. You must respond with a JSON object indicating which tool to use, or if you should use the RAG system.
+The JSON object must have a "tool" key and an "args" key.
+
+Important: When using a tool that requires an ID (like 'project_id'), you must use the exact ID as it appears in the conversation history or a previous tool's output. Do not use the name of the object.
+
+---
+Available tools:
+{tools_description}
+- Tool: answer_with_rag
+  Description: Use this tool for general questions, legal inquiries, or any question that requires information from the knowledge base. 
+  Args:
+      question (str): The user's original question.
+---
+
+Here is an example of a multi-step thought process:
+
+User Query: "Add a task to the 'Dog Bite Case' project to 'Call the witness'."
+
+1.  First, I need to find the ID for the project named 'Dog Bite Case'. I will use the `list_projects` tool.
+    JSON response: {{\"tool\": \"list_projects\", \"args\": {{}}}}
+
+2.  The tool will return a result like this: `[...{{\"id\": \"68b444f3...\", \"name\": \"Dog Bite Case\", ...}}]`. Now I have the project_id.
+
+3.  Now I can call the `create_task` tool with the correct `project_id`.
+    JSON response: {{\"tool\": \"create_task\", \"args\": {{\"project_id\": \"68b444f3...\", \"title\": \"Call the witness\"}}}}
+
+---
+
+If you decide to use a tool, respond with a JSON object like this:
+{{\"tool\": \"tool_name\", \"args\": {{\"arg1\": \"value1\", \"arg2\": \"value2\"}}}}
+
+If the user's query is a general question, use the RAG tool like this:
+{{\"tool\": \"answer_with_rag\", \"args\": {{\"question\": \"the user question\"}}}}
+"""
     return prompt
 
 def run_agent(user_query: str, auth_token: str, history: Optional[List[str]] = None) -> str:
