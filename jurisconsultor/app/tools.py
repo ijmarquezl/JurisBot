@@ -28,7 +28,7 @@ def list_projects() -> str:
     Use this tool when the user asks to see their projects.
     
     Returns:
-        str: A JSON string representing the list of projects.
+        str: A JSON string representing the list of projects, including their names and IDs.
     """
     try:
         response = requests.get(f"{API_BASE_URL}/projects/", headers=_get_headers())
@@ -59,14 +59,13 @@ def create_project(name: str, description: str = None) -> str:
     except Exception as e:
         return json.dumps({"error": f"Failed to create project. {e}"})
 
-
-def create_task(project_name: str, title: str, description: str = None) -> str:
+def create_task(project_id: str, title: str, description: str = None) -> str:
     """
-    Creates a new task in a specific project.
-    To use this tool, you must know the name of the project to add the task to.
+    Creates a new task in a specific project using its ID.
+    To use this tool, you must know the ID of the project. You can get the project ID by using the 'list_projects' tool first.
     
     Args:
-        project_name (str): The name of the project where the task will be created.
+        project_id (str): The ID of the project where the task will be created.
         title (str): The title of the new task.
         description (str, optional): An optional description for the task.
         
@@ -74,62 +73,29 @@ def create_task(project_name: str, title: str, description: str = None) -> str:
         str: A JSON string representing the newly created task.
     """
     try:
-        # Step 1: Find the project ID from the project name.
-        response = requests.get(f"{API_BASE_URL}/projects/", headers=_get_headers())
-        response.raise_for_status()
-        projects = response.json()
-        project_id = None
-        for p in projects:
-            if p['name'].lower() == project_name.lower():
-                project_id = p['id']
-                break
-        
-        if not project_id:
-            return json.dumps({"error": f"Project with name ''{project_name}'' not found."})
-
-        # Step 2: Create the task using the found project ID.
         payload = {"title": title, "description": description}
         task_response = requests.post(f"{API_BASE_URL}/tasks/projects/{project_id}", headers=_get_headers(), json=payload)
         task_response.raise_for_status()
         task_data = task_response.json()
-        print("--- Task Data from API ---")
-        print(task_data)
-        print("--------------------------")
         return json.dumps(task_data)
-
     except Exception as e:
         return json.dumps({"error": f"Failed to create task. {e}"})
 
-def list_tasks(project_name: str) -> str:
+def list_tasks(project_id: str) -> str:
     """
-    Lists all tasks for a specific project.
-    To use this tool, you must know the name of the project.
+    Lists all tasks for a specific project using its ID.
+    To use this tool, you must know the ID of the project. You can get the project ID by using the 'list_projects' tool first.
     
     Args:
-        project_name (str): The name of the project to list tasks from.
+        project_id (str): The ID of the project to list tasks from.
         
     Returns:
         str: A JSON string representing the list of tasks.
     """
     try:
-        # Step 1: Find the project ID from the project name.
-        response = requests.get(f"{API_BASE_URL}/projects/", headers=_get_headers())
-        response.raise_for_status()
-        projects = response.json()
-        project_id = None
-        for p in projects:
-            if p['name'].lower() == project_name.lower():
-                project_id = p['id']
-                break
-        
-        if not project_id:
-            return json.dumps({"error": f"Project with name ''{project_name}'' not found."})
-
-        # Step 2: Get the tasks using the found project ID.
         task_response = requests.get(f"{API_BASE_URL}/tasks/projects/{project_id}", headers=_get_headers())
         task_response.raise_for_status()
         tasks_data = task_response.json()
         return json.dumps(tasks_data)
-
     except Exception as e:
         return json.dumps({"error": f"Failed to list tasks. {e}"})
