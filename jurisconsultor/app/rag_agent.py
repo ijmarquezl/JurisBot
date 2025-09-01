@@ -68,7 +68,9 @@ def get_tools_prompt():
     prompt = """
 You have access to the following tools. You must respond with a JSON object indicating which tool to use, or if you should use the RAG system.
     The JSON object must have a "tool" key and an "args" key.
-    
+
+    Important: When using a tool that requires a 'project_name', you must use the exact project name as it appears in the conversation history or a previous tool's output. Do not rephrase or translate the project name.
+
     Available tools:
     """
     for name, func in inspect.getmembers(tools, inspect.isfunction):
