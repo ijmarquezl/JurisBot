@@ -1,4 +1,0 @@
-2025-09-01 18:23:34,914 - uvicorn.error - INFO - Started server process [3016137]
-2025-09-01 18:23:34,914 - uvicorn.error - INFO - Waiting for application startup.
-2025-09-01 18:23:34,915 - app.main - INFO - Application startup.
-2025-09-01 18:23:34,915 - uvicorn.error - INFO - Application startup complete.
