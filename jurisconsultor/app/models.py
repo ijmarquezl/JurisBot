@@ -1,4 +1,3 @@
-
 from pydantic import BaseModel, Field, ConfigDict, GetJsonSchemaHandler
 from pydantic_core import core_schema
 from typing import Optional, List
@@ -33,6 +32,17 @@ model_config = ConfigDict(
     json_encoders={ObjectId: str},
 )
 
+# --- Company Models ---
+class CompanyBase(BaseModel):
+    name: str
+
+class CompanyCreate(CompanyBase):
+    pass
+
+class CompanyInDB(CompanyBase):
+    model_config = model_config
+    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
+
 # --- User Models ---
 class UserBase(BaseModel):
     email: str
@@ -40,11 +50,14 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str
+    company_id: Optional[PyObjectId] = None # Optional for now, can be made mandatory
 
 class UserInDB(UserBase):
     model_config = model_config
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     hashed_password: str
+    company_id: Optional[PyObjectId] = None
+    role: str = "member" # e.g., admin, lead, member
 
 # --- Token Models ---
 class Token(BaseModel):
@@ -66,6 +79,7 @@ class ProjectCreate(ProjectBase):
 class ProjectInDB(ProjectBase):
     model_config = model_config
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
+    company_id: PyObjectId
     owner_email: str
     members: List[str] = [] # List of member emails
     created_at: datetime = Field(default_factory=datetime.utcnow)
