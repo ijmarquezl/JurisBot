@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from pymongo.database import Database
 from typing import List
+from bson import ObjectId
 
-from app.models import ProjectCreate, ProjectInDB, UserInDB
-from app.dependencies import get_db, get_current_user
+from app.models import ProjectCreate, ProjectInDB, UserInDB, UserBase
+from app.dependencies import get_db, get_current_user, get_project_lead_user
 
 router = APIRouter(
     prefix="/projects",
@@ -37,3 +38,50 @@ def list_projects(db: Database = Depends(get_db), current_user: UserInDB = Depen
         "members": current_user.email
     })
     return [ProjectInDB.parse_obj(p) for p in projects]
+
+@router.post("/{project_id}/members", response_model=ProjectInDB)
+def add_project_member(
+    project_id: str,
+    member_email: str,
+    db: Database = Depends(get_db),
+    lead_user: UserInDB = Depends(get_project_lead_user),
+):
+    """Adds a user to a project. Only admins or project leads can add members."""
+    project = db.projects.find_one({"_id": ObjectId(project_id), "company_id": lead_user.company_id})
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found in this company.")
+
+    user_to_add = db.users.find_one({"email": member_email, "company_id": lead_user.company_id})
+    if not user_to_add:
+        raise HTTPException(status_code=404, detail="User to add not found in this company.")
+
+    db.projects.update_one(
+        {"_id": ObjectId(project_id)},
+        {"$addToSet": {"members": member_email}}
+    )
+    
+    updated_project = db.projects.find_one({"_id": ObjectId(project_id)})
+    return ProjectInDB.parse_obj(updated_project)
+
+@router.delete("/{project_id}/members", response_model=ProjectInDB)
+def remove_project_member(
+    project_id: str,
+    member_email: str,
+    db: Database = Depends(get_db),
+    lead_user: UserInDB = Depends(get_project_lead_user),
+):
+    """Removes a user from a project. Only admins or project leads can remove members."""
+    project = db.projects.find_one({"_id": ObjectId(project_id), "company_id": lead_user.company_id})
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found in this company.")
+
+    if project["owner_email"] == member_email:
+        raise HTTPException(status_code=400, detail="Cannot remove the project owner.")
+
+    db.projects.update_one(
+        {"_id": ObjectId(project_id)},
+        {"$pull": {"members": member_email}}
+    )
+    
+    updated_project = db.projects.find_one({"_id": ObjectId(project_id)})
+    return ProjectInDB.parse_obj(updated_project)

@@ -14,7 +14,7 @@ from app.models import UserCreate, UserInDB, Token, TokenData, UserBase
 from app.security import create_access_token, create_refresh_token, verify_password, verify_token
 from app.users import create_user, get_user
 from app.utils import get_mongo_client
-from app.routers import projects, tasks
+from app.routers import projects, tasks, admin
 from app.dependencies import get_db, get_current_user, oauth2_scheme
 
 # Apply logging configuration
@@ -53,6 +53,7 @@ async def shutdown_event():
 # --- API Routers ---
 app.include_router(projects.router)
 app.include_router(tasks.router)
+app.include_router(admin.router)
 
 @app.post("/users/register", response_model=UserBase)
 def register(user: UserCreate, db: Database = Depends(get_db)):
