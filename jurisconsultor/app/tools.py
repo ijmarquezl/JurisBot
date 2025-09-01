@@ -92,6 +92,9 @@ def create_task(project_name: str, title: str, description: str = None) -> str:
         task_response = requests.post(f"{API_BASE_URL}/tasks/projects/{project_id}", headers=_get_headers(), json=payload)
         task_response.raise_for_status()
         task_data = task_response.json()
+        print("--- Task Data from API ---")
+        print(task_data)
+        print("--------------------------")
         return json.dumps(task_data)
 
     except Exception as e:
