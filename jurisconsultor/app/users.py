@@ -1,18 +1,45 @@
-
 from pymongo.database import Database
-from app.models import UserCreate, UserInDB
+from app.models import UserCreate, UserInDB, CompanyInDB
 from app.security import get_password_hash
 
-def get_user(db: Database, email: str):
-    """Retrieves a user from the database by email."""
-    user = db.users.find_one({"email": email})
-    if user:
-        return UserInDB(**user)
+def get_user(db: Database, email: str) -> UserInDB:
+    user_data = db.users.find_one({"email": email})
+    if user_data:
+        return UserInDB(**user_data)
     return None
 
-def create_user(db: Database, user: UserCreate):
+def get_or_create_company(db: Database, company_name: str) -> CompanyInDB:
+    """Gets a company by name, creating it if it doesn't exist."""
+    company_data = db.companies.find_one({"name": company_name})
+    if company_data:
+        return CompanyInDB(**company_data)
+    else:
+        company_doc = {"name": company_name}
+        result = db.companies.insert_one(company_doc)
+        new_company_data = db.companies.find_one({"_id": result.inserted_id})
+        return CompanyInDB(**new_company_data)
+
+def create_user(db: Database, user: UserCreate) -> UserInDB:
     """Creates a new user in the database."""
     hashed_password = get_password_hash(user.password)
-    user_in_db = UserInDB(email=user.email, full_name=user.full_name, hashed_password=hashed_password)
-    db.users.insert_one(user_in_db.dict())
-    return user_in_db
+    user_dict = user.dict(exclude={"password"})
+    user_dict["hashed_password"] = hashed_password
+    
+    # Handle company assignment
+    if not user.company_id:
+        # If no company_id is provided, derive from email and get or create company
+        email_domain = user.email.split('@')[1]
+        company = get_or_create_company(db, company_name=email_domain)
+        user_dict["company_id"] = company.id
+    
+    # For now, the first user of a company becomes an admin
+    existing_users_in_company = db.users.count_documents({"company_id": user_dict["company_id"]})
+    if existing_users_in_company == 0:
+        user_dict["role"] = "admin"
+    else:
+        user_dict["role"] = "member"
+
+    result = db.users.insert_one(user_dict)
+    created_user = db.users.find_one({"_id": result.inserted_id})
+    
+    return UserInDB(**created_user)
