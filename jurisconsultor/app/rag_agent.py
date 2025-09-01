@@ -92,45 +92,57 @@ You have access to the following tools. You must respond with a JSON object indi
 
 def run_agent(user_query: str, auth_token: str, history: Optional[List[str]] = None) -> str:
     """The main function to run the conversational agent."""
-    tools.set_auth_token(auth_token) # Set the token for the tools module to use
+    tools.set_auth_token(auth_token)
 
     # 1. Construct the prompt for the LLM to choose a tool
     tools_prompt = get_tools_prompt()
-    
     history_str = ""
     if history:
         history_str = "\n".join(history) + "\n"
-        
     decision_prompt = f"{tools_prompt}\n\nConversation History:\n{history_str}User Query: \"{user_query}\"\n\nJSON response:"
 
     # 2. Call the LLM to get its decision
     llm_decision_str = call_llm(decision_prompt, json_format=True)
     print(f"LLM Decision: {llm_decision_str}")
 
-    # 3. Parse the decision and dispatch to the correct tool or RAG
+    # 3. Parse the decision and select the tool
     try:
-        # Extract the JSON part from the LLM's response
         start_index = llm_decision_str.find('{')
         end_index = llm_decision_str.rfind('}')
         if start_index != -1 and end_index != -1:
             json_str = llm_decision_str[start_index:end_index+1]
             decision = json.loads(json_str)
         else:
-            # If no JSON is found, fallback to RAG
             return answer_with_rag(user_query)
 
         tool_name = decision.get("tool")
         args = decision.get("args", {})
 
+        # 4. Execute the selected tool
         if tool_name == "answer_with_rag":
             return answer_with_rag(**args)
         elif hasattr(tools, tool_name):
             tool_function = getattr(tools, tool_name)
-            return tool_function(**args)
+            tool_result = tool_function(**args)
         else:
-            return "Error: The model chose a tool that does not exist."
+            tool_result = "Error: The model chose a tool that does not exist."
+
+        # 5. Formulate a natural language response based on the tool's result
+        response_formulation_prompt = f"""
+        The user asked: "{user_query}"
+        You decided to use the tool: "{tool_name}"
+        The result from the tool is:
+        ---
+        {tool_result}
+        ---
+        Based on this result, please formulate a friendly and clear response to the user in Spanish.
+        If the result is an error, inform the user about the error in a helpful way.
+        If the result is a list of items, format them nicely for the user.
+        """
+        
+        final_response = call_llm(response_formulation_prompt)
+        return final_response
 
     except (json.JSONDecodeError, AttributeError, TypeError) as e:
         print(f"Error parsing LLM decision or calling tool: {e}")
-        # If parsing fails, fall back to RAG or a default response
         return answer_with_rag(user_query)
