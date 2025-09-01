@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import apiClient from './api'; // Import the new API client
+import apiClient from './api';
+import logger from './logger'; // Import the new logger
 import { Container, TextField, Button, Typography, Box, Paper, Stack, CircularProgress } from '@mui/material';
 
 function App() {
@@ -13,7 +14,6 @@ function App() {
   const [loading, setLoading] = useState(false);
 
   // Effect to update the apiClient's headers when the token changes.
-  // This is not strictly necessary with the interceptor, but can be good practice.
   useEffect(() => {
     const storedToken = localStorage.getItem('accessToken');
     if (storedToken) {
@@ -38,10 +38,10 @@ function App() {
       localStorage.setItem('refreshToken', refresh_token);
       setToken(access_token);
       setError('');
-      console.log("Login successful.");
+      logger.log("Login successful.");
     } catch (err) {
       setError('Error al iniciar sesión. Verifica tus credenciales.');
-      console.error(err);
+      logger.error("Login error:", err);
     } finally {
       setLoading(false);
     }
@@ -52,7 +52,7 @@ function App() {
     localStorage.removeItem('refreshToken');
     setToken(null);
     setMessages([]);
-    console.log("User logged out.");
+    logger.log("User logged out.");
   };
 
   const handleAsk = async () => {
@@ -77,7 +77,7 @@ function App() {
       setMessages([...newMessages, { sender: 'bot', text: response.data.answer }]);
     } catch (err) {
       setError('Error al hacer la pregunta. Tu sesión puede haber expirado.');
-      console.error(err);
+      logger.error("Ask error:", err);
     } finally {
       setLoading(false);
     }
