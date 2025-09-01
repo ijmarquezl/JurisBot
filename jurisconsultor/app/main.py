@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, Body
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from pymongo.database import Database
@@ -8,7 +8,7 @@ from typing import Optional, List
 
 from app.rag_agent import run_agent # Changed import
 from app.models import UserCreate, UserInDB, Token, TokenData, UserBase
-from app.security import create_access_token, verify_password, verify_token
+from app.security import create_access_token, create_refresh_token, verify_password, verify_token
 from app.users import create_user, get_user
 from app.utils import get_mongo_client
 from app.routers import projects, tasks
@@ -50,8 +50,8 @@ def register(user: UserCreate, db: Database = Depends(get_db)):
 
 @app.post("/token", response_model=Token)
 def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Database = Depends(get_db)):
-    """Login user and return an access token."""
-    user = get_user(db, email=form_data.username) # OAuth2 spec uses 'username' for the email
+    """Login user and return access and refresh tokens."""
+    user = get_user(db, email=form_data.username)
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -59,7 +59,35 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
             headers={"WWW-Authenticate": "Bearer"},
         )
     access_token = create_access_token(data={"sub": user.email})
-    return {"access_token": access_token, "token_type": "bearer"}
+    refresh_token = create_refresh_token(data={"sub": user.email})
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+    }
+
+@app.post("/refresh", response_model=Token)
+def refresh_access_token(refresh_token: str = Body(..., embed=True), db: Database = Depends(get_db)):
+    """Refresh an access token."""
+    try:
+        payload = verify_token(refresh_token)
+        if payload.get("type") != "refresh":
+            raise HTTPException(status_code=401, detail="Invalid token type")
+        email = payload.get("sub")
+        if email is None:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        user = get_user(db, email=email)
+        if user is None:
+            raise HTTPException(status_code=401, detail="User not found")
+        
+        new_access_token = create_access_token(data={"sub": user.email})
+        return {
+            "access_token": new_access_token,
+            "refresh_token": refresh_token,
+            "token_type": "bearer",
+        }
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
 
 @app.get("/users/me", response_model=UserBase)
 def read_users_me(current_user: UserInDB = Depends(get_current_user)):
