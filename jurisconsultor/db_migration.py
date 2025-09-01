@@ -1,18 +1,26 @@
-
 import os
+import argparse
 import psycopg2
 from dotenv import load_dotenv
 
-def main():
+def main(db_type: str):
     """
-    Main function to run the database migration.
+    Main function to run the database migration on the specified database.
+    
+    Args:
+        db_type (str): The type of database to migrate ('public' or 'private').
     """
     load_dotenv()
 
-    postgres_uri = os.getenv("POSTGRES_URI")
+    if db_type == 'public':
+        postgres_uri = os.getenv("PUBLIC_POSTGRES_URI")
+    elif db_type == 'private':
+        postgres_uri = os.getenv("PRIVATE_POSTGRES_URI")
+    else:
+        raise ValueError("Invalid db_type specified. Must be 'public' or 'private'.")
 
     if not postgres_uri:
-        print("POSTGRES_URI environment variable not set.")
+        print(f"{db_type.upper()}_POSTGRES_URI environment variable not set.")
         return
 
     try:
@@ -21,7 +29,7 @@ def main():
 
         # Enable the vector extension
         cur.execute("CREATE EXTENSION IF NOT EXISTS vector;")
-        print("Vector extension enabled.")
+        print(f"Vector extension enabled for {db_type} database.")
 
         # Create the documents table
         cur.execute("""
@@ -32,7 +40,7 @@ def main():
                 source VARCHAR(255)
             );
         """)
-        print("Documents table created successfully.")
+        print(f"Documents table created successfully for {db_type} database.")
 
         conn.commit()
         cur.close()
@@ -42,4 +50,9 @@ def main():
         print(f"Error connecting to PostgreSQL: {e}")
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Run database migrations.")
+    parser.add_argument("db_type", type=str, choices=['public', 'private'], help="The type of database to migrate ('public' or 'private').")
+    
+    args = parser.parse_args()
+    
+    main(args.db_type)
