@@ -39,7 +39,7 @@ function Login({ onLogin }) {
   };
 
   return (
-    <Container maxWidth="xs" sx={{ mt: 8 }}>
+    <Box sx={{ mt: 8, maxWidth: 'xs', width: '100%' }}>
       <Typography variant="h4" gutterBottom align="center">
         JurisconsultorIA
       </Typography>
@@ -71,7 +71,7 @@ function Login({ onLogin }) {
         </Stack>
         {error && <Typography color="error" sx={{ mt: 2 }} align="center">{error}</Typography>}
       </Box>
-    </Container>
+    </Box>
   );
 }
 

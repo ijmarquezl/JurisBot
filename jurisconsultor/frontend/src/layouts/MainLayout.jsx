@@ -23,9 +23,9 @@ function MainLayout({ onLogout }) {
           </Button>
         </Toolbar>
       </AppBar>
-      <Container maxWidth="md" sx={{ mt: 4 }}>
+      <Box sx={{ mt: 4 }}>
         <Outlet /> {/* This will render the matched child route */}
-      </Container>
+      </Box>
     </Box>
   );
 }
