@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from typing import List
 from pymongo.database import Database
+from bson import ObjectId
 
-from app.models import UserCreate, UserInDB, UserBase
+from app.models import UserCreate, UserInDB, UserBase, UserUpdate
 from app.dependencies import get_db, get_admin_user
 from app.users import create_user, get_user
 
@@ -36,3 +37,45 @@ def create_new_user(new_user: UserCreate, admin_user: UserInDB = Depends(get_adm
     
     created_user = create_user(db, new_user)
     return created_user
+
+@router.delete("/users/{user_id}", status_code=204)
+def delete_user(user_id: str, admin_user: UserInDB = Depends(get_admin_user), db: Database = Depends(get_db)):
+    """Deletes a user from the admin's company."""
+    if not admin_user.company_id:
+        raise HTTPException(status_code=400, detail="Admin user is not associated with a company.")
+    
+    if user_id == str(admin_user.id): # Convert ObjectId to string for comparison
+        raise HTTPException(status_code=400, detail="Cannot delete yourself.")
+
+    # Find the user to delete and ensure they belong to the admin's company
+    user_to_delete = db.users.find_one({"_id": ObjectId(user_id), "company_id": admin_user.company_id})
+    if not user_to_delete:
+        raise HTTPException(status_code=404, detail="User not found in this company.")
+    
+    db.users.delete_one({"_id": ObjectId(user_id)})
+    return {"message": "User deleted successfully."}
+
+@router.put("/users/{user_id}", response_model=UserBase)
+def update_user(user_id: str, user_update: UserUpdate, admin_user: UserInDB = Depends(get_admin_user), db: Database = Depends(get_db)):
+    """Updates a user's details within the admin's company."""
+    if not admin_user.company_id:
+        raise HTTPException(status_code=400, detail="Admin user is not associated with a company.")
+    
+    # Find the user to update and ensure they belong to the admin's company
+    user_to_update = db.users.find_one({"_id": ObjectId(user_id), "company_id": admin_user.company_id})
+    if not user_to_update:
+        raise HTTPException(status_code=404, detail="User not found in this company.")
+    
+    update_data = user_update.dict(exclude_unset=True) # Only update provided fields
+
+    # Prevent admin from changing their own role to non-admin
+    if user_id == str(admin_user.id) and "role" in update_data and update_data["role"] != "admin":
+        raise HTTPException(status_code=400, detail="Cannot change your own role from admin.")
+
+    db.users.update_one(
+        {"_id": ObjectId(user_id)},
+        {"$set": update_data}
+    )
+    
+    updated_user = db.users.find_one({"_id": ObjectId(user_id)})
+    return UserBase(**updated_user)

@@ -52,6 +52,13 @@ class UserCreate(UserBase):
     password: str
     company_id: Optional[PyObjectId] = None # Optional for now, can be made mandatory
 
+class UserUpdate(BaseModel):
+    email: Optional[str] = None
+    full_name: Optional[str] = None
+    password: Optional[str] = None
+    company_id: Optional[PyObjectId] = None
+    role: Optional[str] = None
+
 class UserInDB(UserBase):
     model_config = model_config
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
