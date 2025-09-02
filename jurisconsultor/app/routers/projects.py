@@ -25,7 +25,7 @@ def create_project(project: ProjectCreate, db: Database = Depends(get_db), curre
     result = db.projects.insert_one(project_dict)
     created_project = db.projects.find_one({"_id": result.inserted_id})
     
-    return ProjectInDB.parse_obj(created_project)
+    return ProjectInDB.parse_obj(created_project).model_dump(by_alias=True)
 
 @router.get("/", response_model=List[ProjectInDB])
 def list_projects(db: Database = Depends(get_db), current_user: UserInDB = Depends(get_current_user)):
@@ -37,7 +37,7 @@ def list_projects(db: Database = Depends(get_db), current_user: UserInDB = Depen
         "company_id": current_user.company_id,
         "members": current_user.email
     })
-    return [ProjectInDB.parse_obj(p) for p in projects]
+    return [ProjectInDB.parse_obj(p).model_dump(by_alias=True) for p in projects]
 
 @router.post("/{project_id}/members", response_model=ProjectInDB)
 def add_project_member(
@@ -61,7 +61,7 @@ def add_project_member(
     )
     
     updated_project = db.projects.find_one({"_id": ObjectId(project_id)})
-    return ProjectInDB.parse_obj(updated_project)
+    return ProjectInDB.parse_obj(updated_project).model_dump(by_alias=True)
 
 @router.delete("/{project_id}/members", response_model=ProjectInDB)
 def remove_project_member(
@@ -84,4 +84,4 @@ def remove_project_member(
     )
     
     updated_project = db.projects.find_one({"_id": ObjectId(project_id)})
-    return ProjectInDB.parse_obj(updated_project)
+    return ProjectInDB.parse_obj(updated_project).model_dump(by_alias=True)

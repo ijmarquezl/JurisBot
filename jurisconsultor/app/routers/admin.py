@@ -23,7 +23,7 @@ def list_users_in_company(admin_user: UserInDB = Depends(get_admin_user), db: Da
         raise HTTPException(status_code=400, detail="Admin user is not associated with a company.")
         
     users_cursor = db.users.find({"company_id": admin_user.company_id})
-    users_list = [UserInDB(**user) for user in users_cursor]
+    users_list = [UserInDB(**user).model_dump(by_alias=True) for user in users_cursor]
     logger.info(f"Users returned from list_users_in_company: {users_list}")
     return users_list
 
@@ -41,7 +41,7 @@ def create_new_user(new_user: UserCreate, admin_user: UserInDB = Depends(get_adm
     new_user.company_id = admin_user.company_id
     
     created_user = create_user(db, new_user)
-    return created_user
+    return created_user.model_dump(by_alias=True)
 
 @router.delete("/users/{user_id}", status_code=204)
 def delete_user(user_id: str, admin_user: UserInDB = Depends(get_admin_user), db: Database = Depends(get_db)):
@@ -92,4 +92,4 @@ def update_user(user_id: str, user_update: UserUpdate, admin_user: UserInDB = De
     
     updated_user = db.users.find_one({"_id": ObjectId(user_id)})
     logger.info(f"User {user_id} updated successfully by admin {admin_user.email}.")
-    return UserBase(**updated_user)
+    return UserBase(**updated_user).model_dump(by_alias=True)
