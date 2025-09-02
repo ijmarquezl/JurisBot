@@ -1,5 +1,7 @@
 import logging
 from logging.config import dictConfig
+import sys
+import pydantic_core
 from fastapi import FastAPI, Depends, HTTPException, status, Body
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,6 +22,11 @@ from app.dependencies import get_db, get_current_user, oauth2_scheme
 # Apply logging configuration
 dictConfig(LOGGING_CONFIG)
 logger = logging.getLogger(__name__)
+
+# Debug logging for pydantic_core
+logger.info(f"sys.path: {sys.path}")
+logger.info(f"pydantic_core.__file__: {pydantic_core.__file__}")
+logger.info(f"pydantic_core.__version__: {pydantic_core.__version__}")
 
 app = FastAPI(
     title="Jurisconsultor API",
