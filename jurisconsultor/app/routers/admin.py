@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException
 from typing import List
 from pymongo.database import Database
@@ -6,6 +7,8 @@ from bson import ObjectId
 from app.models import UserCreate, UserInDB, UserBase, UserUpdate
 from app.dependencies import get_db, get_admin_user
 from app.users import create_user, get_user
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/admin",
@@ -58,18 +61,26 @@ def delete_user(user_id: str, admin_user: UserInDB = Depends(get_admin_user), db
 @router.put("/users/{user_id}", response_model=UserBase)
 def update_user(user_id: str, user_update: UserUpdate, admin_user: UserInDB = Depends(get_admin_user), db: Database = Depends(get_db)):
     """Updates a user's details within the admin's company."""
+    logger.info(f"Attempting to update user with ID: {user_id} by admin: {admin_user.email}")
+    
     if not admin_user.company_id:
+        logger.warning(f"Admin user {admin_user.email} is not associated with a company.")
         raise HTTPException(status_code=400, detail="Admin user is not associated with a company.")
     
     # Find the user to update and ensure they belong to the admin's company
     user_to_update = db.users.find_one({"_id": ObjectId(user_id), "company_id": admin_user.company_id})
+    
+    logger.info(f"Query for user_id {user_id} returned: {user_to_update}")
+
     if not user_to_update:
+        logger.warning(f"User with ID {user_id} not found in company {admin_user.company_id}.")
         raise HTTPException(status_code=404, detail="User not found in this company.")
     
     update_data = user_update.dict(exclude_unset=True) # Only update provided fields
 
     # Prevent admin from changing their own role to non-admin
     if user_id == str(admin_user.id) and "role" in update_data and update_data["role"] != "admin":
+        logger.warning(f"Admin {admin_user.email} attempted to change their own role from admin.")
         raise HTTPException(status_code=400, detail="Cannot change your own role from admin.")
 
     db.users.update_one(
@@ -78,4 +89,5 @@ def update_user(user_id: str, user_update: UserUpdate, admin_user: UserInDB = De
     )
     
     updated_user = db.users.find_one({"_id": ObjectId(user_id)})
+    logger.info(f"User {user_id} updated successfully by admin {admin_user.email}.")
     return UserBase(**updated_user)
