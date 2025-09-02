@@ -32,6 +32,7 @@ function AdminDashboard() {
     setError('');
     try {
       const response = await apiClient.get('/admin/users');
+      logger.log("Users received from API:", response.data); // Debug log
       setUsers(response.data);
     } catch (err) {
       setError('Error al cargar usuarios.');
@@ -79,6 +80,7 @@ function AdminDashboard() {
 
   // --- Edit User Handlers ---
   const handleOpenEditDialog = (user) => {
+    logger.log("User object passed to handleOpenEditDialog:", user); // Debug log
     setCurrentUser({ ...user, password: '' }); // Don't pre-fill password
     setOpenEditDialog(true);
     setEditError('');
@@ -102,6 +104,7 @@ function AdminDashboard() {
       if (!updateData.password) {
         delete updateData.password; // Don't send empty password
       }
+      logger.log("currentUser.id before PUT request:", currentUser.id); // Debug log
       await apiClient.put(`/admin/users/${currentUser.id}`, updateData);
       logger.log('User updated successfully:', currentUser.email);
       fetchUsers(); // Refresh the user list
