@@ -21,7 +21,7 @@ class PyObjectId(ObjectId):
         cls,
         _core_schema: core_schema.CoreSchema,
         handler: GetJsonSchemaHandler,
-    ) -> core_schema.JsonSchemaValue:
+    ) -> "core_schema.JsonSchemaValue": # Changed to string literal
         # Represent ObjectId as a string in JSON Schema
         return handler(core_schema.string_schema())
 
