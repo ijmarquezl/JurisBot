@@ -25,6 +25,14 @@ class PyObjectId(ObjectId):
         # Represent ObjectId as a string in JSON Schema
         return handler(core_schema.string_schema())
 
+    @classmethod
+    def __get_pydantic_core_schema__(cls, source_type, handler):
+        return core_schema.json_or_python_schema(
+            json_schema=core_schema.string_schema(),
+            python_schema=core_schema.with_info_plain_validator_function(cls.validate),
+            serialization=core_schema.to_string_ser_schema(),
+        )
+
 # Common Pydantic model configuration for DB models
 model_config = ConfigDict(
     from_attributes=True,
