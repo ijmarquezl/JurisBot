@@ -23,7 +23,9 @@ def list_users_in_company(admin_user: UserInDB = Depends(get_admin_user), db: Da
         raise HTTPException(status_code=400, detail="Admin user is not associated with a company.")
         
     users_cursor = db.users.find({"company_id": admin_user.company_id})
-    return [UserInDB(**user) for user in users_cursor]
+    users_list = [UserInDB(**user) for user in users_cursor]
+    logger.info(f"Users returned from list_users_in_company: {users_list}")
+    return users_list
 
 @router.post("/users", response_model=UserBase, status_code=201)
 def create_new_user(new_user: UserCreate, admin_user: UserInDB = Depends(get_admin_user), db: Database = Depends(get_db)):
