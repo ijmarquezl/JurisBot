@@ -16,14 +16,14 @@ router = APIRouter(
     dependencies=[Depends(get_admin_user)], # Protect all routes in this router
 )
 
-@router.get("/users", response_model=List[UserBase])
+@router.get("/users", response_model=List[UserInDB])
 def list_users_in_company(admin_user: UserInDB = Depends(get_admin_user), db: Database = Depends(get_db)):
     """Lists all users in the admin's company."""
     if not admin_user.company_id:
         raise HTTPException(status_code=400, detail="Admin user is not associated with a company.")
         
     users_cursor = db.users.find({"company_id": admin_user.company_id})
-    return [UserBase(**user) for user in users_cursor]
+    return [UserInDB(**user) for user in users_cursor]
 
 @router.post("/users", response_model=UserBase, status_code=201)
 def create_new_user(new_user: UserCreate, admin_user: UserInDB = Depends(get_admin_user), db: Database = Depends(get_db)):
