@@ -16,23 +16,6 @@ class PyObjectId(ObjectId):
             raise ValueError("Invalid objectid")
         return ObjectId(v)
 
-    @classmethod
-    def __get_pydantic_json_schema__(
-        cls,
-        _core_schema: core_schema.CoreSchema,
-        handler: GetJsonSchemaHandler,
-    ) -> "core_schema.JsonSchemaValue": # Changed to string literal
-        # Represent ObjectId as a string in JSON Schema
-        return handler(core_schema.string_schema())
-
-    @classmethod
-    def __get_pydantic_core_schema__(cls, source_type, handler):
-        return core_schema.json_or_python_schema(
-            json_schema=core_schema.string_schema(),
-            python_schema=core_schema.with_info_plain_validator_function(cls.validate),
-            serialization=core_schema.to_string_ser_schema(),
-        )
-
 # Common Pydantic model configuration for DB models
 model_config = ConfigDict(
     from_attributes=True,
@@ -49,7 +32,7 @@ class CompanyCreate(CompanyBase):
 
 class CompanyInDB(CompanyBase):
     model_config = model_config
-    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
+    id: str = Field(default_factory=lambda: str(ObjectId()), alias="_id")
 
 # --- User Models ---
 class UserBase(BaseModel):
@@ -58,20 +41,20 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str
-    company_id: Optional[PyObjectId] = None # Optional for now, can be made mandatory
+    company_id: Optional[str] = None # Optional for now, can be made mandatory
 
 class UserUpdate(BaseModel):
     email: Optional[str] = None
     full_name: Optional[str] = None
     password: Optional[str] = None
-    company_id: Optional[PyObjectId] = None
+    company_id: Optional[str] = None
     role: Optional[str] = None
 
 class UserInDB(UserBase):
     model_config = model_config
-    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
+    id: str = Field(default_factory=lambda: str(ObjectId()), alias="_id")
     hashed_password: str
-    company_id: Optional[PyObjectId] = None
+    company_id: Optional[str] = None
     role: str = "member" # e.g., admin, lead, member
 
 # --- Token Models ---
@@ -93,8 +76,8 @@ class ProjectCreate(ProjectBase):
 
 class ProjectInDB(ProjectBase):
     model_config = model_config
-    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
-    company_id: PyObjectId
+    id: str = Field(default_factory=lambda: str(ObjectId()), alias="_id")
+    company_id: str
     owner_email: str
     members: List[str] = [] # List of member emails
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -110,8 +93,8 @@ class TaskCreate(TaskBase):
 
 class TaskInDB(TaskBase):
     model_config = model_config
-    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
-    project_id: PyObjectId
+    id: str = Field(default_factory=lambda: str(ObjectId()), alias="_id")
+    project_id: str
     creator_email: str
     assignee_email: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
