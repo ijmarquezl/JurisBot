@@ -41,7 +41,7 @@ def create_task_for_project(project_id: str, task: TaskCreate, db: Database = De
     result = db.tasks.insert_one(task_dict)
     created_task = db.tasks.find_one({"_id": result.inserted_id})
     
-    return TaskInDB.parse_obj(created_task).model_dump(by_alias=True)
+    return TaskInDB.from_mongo(created_task).model_dump(by_alias=True)
 
 @router.get("/projects/{project_id}", response_model=List[TaskInDB])
 def list_tasks_for_project(project_id: str, db: Database = Depends(get_db), current_user: UserInDB = Depends(get_current_user)):
@@ -49,4 +49,4 @@ def list_tasks_for_project(project_id: str, db: Database = Depends(get_db), curr
     verify_project_membership(project_id, current_user, db)
     
     tasks = db.tasks.find({"project_id": ObjectId(project_id)})
-    return [TaskInDB.parse_obj(t).model_dump(by_alias=True) for t in tasks]
+    return [TaskInDB.from_mongo(t).model_dump(by_alias=True) for t in tasks]

@@ -19,7 +19,13 @@ class CompanyCreate(CompanyBase):
 
 class CompanyInDB(CompanyBase):
     model_config = model_config
-    id: str = Field(alias="_id") # Changed to str
+    id: str # Removed Field(alias="_id")
+
+    @classmethod
+    def from_mongo(cls, data: dict):
+        if "_id" in data:
+            data["id"] = str(data["_id"])
+        return cls(**data)
 
 # --- User Models ---
 class UserBase(BaseModel):
@@ -39,10 +45,18 @@ class UserUpdate(BaseModel):
 
 class UserInDB(UserBase):
     model_config = model_config
-    id: str = Field(alias="_id") # Changed to str
+    id: str # Removed Field(alias="_id")
     hashed_password: str
-    company_id: Optional[str] = None # Changed to str
-    role: str = "member" # e.g., admin, lead, member
+    company_id: Optional[str] = None
+    role: str = "member"
+
+    @classmethod
+    def from_mongo(cls, data: dict):
+        if "_id" in data:
+            data["id"] = str(data["_id"])
+        if "company_id" in data and data["company_id"] is not None:
+            data["company_id"] = str(data["company_id"])
+        return cls(**data)
 
 # --- Token Models ---
 class Token(BaseModel):
@@ -63,11 +77,19 @@ class ProjectCreate(ProjectBase):
 
 class ProjectInDB(ProjectBase):
     model_config = model_config
-    id: str = Field(alias="_id") # Changed to str
-    company_id: str # Changed to str
+    id: str # Removed Field(alias="_id")
+    company_id: str
     owner_email: str
     members: List[str] = [] # List of member emails
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    @classmethod
+    def from_mongo(cls, data: dict):
+        if "_id" in data:
+            data["id"] = str(data["_id"])
+        if "company_id" in data and data["company_id"] is not None:
+            data["company_id"] = str(data["company_id"])
+        return cls(**data)
 
 # --- Task Models ---
 class TaskBase(BaseModel):
@@ -80,8 +102,16 @@ class TaskCreate(TaskBase):
 
 class TaskInDB(TaskBase):
     model_config = model_config
-    id: str = Field(alias="_id") # Changed to str
-    project_id: str # Changed to str
+    id: str # Removed Field(alias="_id")
+    project_id: str
     creator_email: str
     assignee_email: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    @classmethod
+    def from_mongo(cls, data: dict):
+        if "_id" in data:
+            data["id"] = str(data["_id"])
+        if "project_id" in data and data["project_id"] is not None:
+            data["project_id"] = str(data["project_id"])
+        return cls(**data)
