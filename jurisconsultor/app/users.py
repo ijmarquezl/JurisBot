@@ -11,12 +11,7 @@ def get_user(db: Database, email: str) -> UserInDB:
     user_data = db.users.find_one({"email": email})
     logger.info(f"User data from DB: {user_data}")
     if user_data:
-        # Explicitly convert ObjectId to string for Pydantic validation
-        user_data["_id"] = str(user_data["_id"])
-        if "company_id" in user_data and user_data["company_id"] is not None:
-            user_data["company_id"] = str(user_data["company_id"])
-        logger.info(f"User data before Pydantic validation: {user_data}") # New log
-        return UserInDB(**user_data)
+        return UserInDB(**user_data) # Removed explicit conversion
     return None
 
 def get_or_create_company(db: Database, company_name: str) -> CompanyInDB:
@@ -25,16 +20,13 @@ def get_or_create_company(db: Database, company_name: str) -> CompanyInDB:
     company_data = db.companies.find_one({"name": company_name})
     logger.info(f"Company data from DB: {company_data}")
     if company_data:
-        company_data["_id"] = str(company_data["_id"])
-        return CompanyInDB(**company_data)
+        return CompanyInDB(**company_data) # Removed explicit conversion
     else:
         company_doc = {"name": company_name}
         logger.info(f"Creating new company: {company_name}")
         result = db.companies.insert_one(company_doc)
         new_company_data = db.companies.find_one({"_id": result.inserted_id})
-        new_company_data["_id"] = str(new_company_data["_id"])
-        logger.info(f"New company created: {new_company_data}")
-        return CompanyInDB(**new_company_data)
+        return CompanyInDB(**new_company_data) # Removed explicit conversion
 
 def create_user(db: Database, user: UserCreate) -> UserInDB:
     """Creates a new user in the database."""
