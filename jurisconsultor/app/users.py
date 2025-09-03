@@ -15,6 +15,7 @@ def get_user(db: Database, email: str) -> UserInDB:
         user_data["_id"] = str(user_data["_id"])
         if "company_id" in user_data and user_data["company_id"] is not None:
             user_data["company_id"] = str(user_data["company_id"])
+        logger.info(f"User data before Pydantic validation: {user_data}") # New log
         return UserInDB(**user_data)
     return None
 
