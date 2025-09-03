@@ -11,7 +11,10 @@ def get_user(db: Database, email: str) -> UserInDB:
     user_data = db.users.find_one({"email": email})
     logger.info(f"User data from DB: {user_data}")
     if user_data:
-        # Removed explicit conversion, Pydantic should handle it with alias="_id"
+        # Explicitly convert ObjectId to string for Pydantic validation
+        user_data["_id"] = str(user_data["_id"])
+        if "company_id" in user_data and user_data["company_id"] is not None:
+            user_data["company_id"] = str(user_data["company_id"])
         return UserInDB(**user_data)
     return None
 
@@ -21,14 +24,14 @@ def get_or_create_company(db: Database, company_name: str) -> CompanyInDB:
     company_data = db.companies.find_one({"name": company_name})
     logger.info(f"Company data from DB: {company_data}")
     if company_data:
-        # Removed explicit conversion
+        company_data["_id"] = str(company_data["_id"]) # Convert _id to string
         return CompanyInDB(**company_data)
     else:
         company_doc = {"name": company_name}
         logger.info(f"Creating new company: {company_name}")
         result = db.companies.insert_one(company_doc)
         new_company_data = db.companies.find_one({"_id": result.inserted_id})
-        # Removed explicit conversion
+        new_company_data["_id"] = str(new_company_data["_id"]) # Convert _id to string
         return CompanyInDB(**new_company_data)
 
 def create_user(db: Database, user: UserCreate) -> UserInDB:
