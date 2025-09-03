@@ -11,7 +11,11 @@ def get_user(db: Database, email: str) -> UserInDB:
     user_data = db.users.find_one({"email": email})
     logger.info(f"User data from DB: {user_data}")
     if user_data:
-        return UserInDB.from_mongo(user_data) # Use from_mongo
+        # Explicitly convert ObjectId to string for Pydantic validation
+        user_data["_id"] = str(user_data["_id"])
+        if "company_id" in user_data and user_data["company_id"] is not None:
+            user_data["company_id"] = str(user_data["company_id"])
+        return UserInDB(**user_data)
     return None
 
 def get_or_create_company(db: Database, company_name: str) -> CompanyInDB:
@@ -20,14 +24,16 @@ def get_or_create_company(db: Database, company_name: str) -> CompanyInDB:
     company_data = db.companies.find_one({"name": company_name})
     logger.info(f"Company data from DB: {company_data}")
     if company_data:
-        return CompanyInDB.from_mongo(company_data) # Use from_mongo
+        company_data["_id"] = str(company_data["_id"])
+        return CompanyInDB(**company_data)
     else:
         company_doc = {"name": company_name}
         logger.info(f"Creating new company: {company_name}")
         result = db.companies.insert_one(company_doc)
         new_company_data = db.companies.find_one({"_id": result.inserted_id})
+        new_company_data["_id"] = str(new_company_data["_id"])
         logger.info(f"New company created: {new_company_data}")
-        return CompanyInDB.from_mongo(new_company_data) # Use from_mongo
+        return CompanyInDB(**new_company_data)
 
 def create_user(db: Database, user: UserCreate) -> UserInDB:
     """Creates a new user in the database."""
