@@ -23,7 +23,12 @@ def list_users_in_company(admin_user: UserInDB = Depends(get_admin_user), db: Da
         raise HTTPException(status_code=400, detail="Admin user is not associated with a company.")
         
     users_cursor = db.users.find({"company_id": ObjectId(admin_user.company_id)})
-    users_list = [UserInDB(**user).model_dump(by_alias=True) for user in users_cursor]
+    users_list = []
+    for user_data in users_cursor:
+        user_data["_id"] = str(user_data["_id"])
+        if "company_id" in user_data and user_data["company_id"] is not None:
+            user_data["company_id"] = str(user_data["company_id"])
+        users_list.append(UserInDB(**user_data).model_dump(by_alias=True))
     logger.info(f"Admin user company_id: {admin_user.company_id}")
     logger.info(f"MongoDB query for users: {{'company_id': '{admin_user.company_id}'}}")
     logger.info(f"Users returned from list_users_in_company: {users_list}")
