@@ -24,6 +24,8 @@ def list_users_in_company(admin_user: UserInDB = Depends(get_admin_user), db: Da
         
     users_cursor = db.users.find({"company_id": admin_user.company_id})
     users_list = [UserInDB(**user).model_dump(by_alias=True) for user in users_cursor]
+    logger.info(f"Admin user company_id: {admin_user.company_id}")
+    logger.info(f"MongoDB query for users: {{'company_id': '{admin_user.company_id}'}}")
     logger.info(f"Users returned from list_users_in_company: {users_list}")
     return users_list
 
