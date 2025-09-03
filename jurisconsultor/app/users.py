@@ -6,9 +6,10 @@ from bson import ObjectId # Import ObjectId
 def get_user(db: Database, email: str) -> UserInDB:
     user_data = db.users.find_one({"email": email})
     if user_data:
-        # Convert ObjectId to string for Pydantic validation
-        user_data["id"] = str(user_data["_id"])
-        user_data["company_id"] = str(user_data["company_id"])
+        # Explicitly convert ObjectId to string for Pydantic validation
+        user_data["_id"] = str(user_data["_id"])
+        if "company_id" in user_data and user_data["company_id"] is not None:
+            user_data["company_id"] = str(user_data["company_id"])
         return UserInDB(**user_data)
     return None
 
@@ -16,13 +17,13 @@ def get_or_create_company(db: Database, company_name: str) -> CompanyInDB:
     """Gets a company by name, creating it if it doesn't exist."""
     company_data = db.companies.find_one({"name": company_name})
     if company_data:
-        company_data["id"] = str(company_data["_id"]) # Convert ObjectId to string
+        company_data["_id"] = str(company_data["_id"]) # Convert _id to string
         return CompanyInDB(**company_data)
     else:
         company_doc = {"name": company_name}
         result = db.companies.insert_one(company_doc)
         new_company_data = db.companies.find_one({"_id": result.inserted_id})
-        new_company_data["id"] = str(new_company_data["_id"]) # Convert ObjectId to string
+        new_company_data["_id"] = str(new_company_data["_id"]) # Convert _id to string
         return CompanyInDB(**new_company_data)
 
 def create_user(db: Database, user: UserCreate) -> UserInDB:
