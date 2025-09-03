@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from pymongo.database import Database
 from typing import List
-from bson import ObjectId
+from bson import ObjectId # Keep ObjectId for queries
 
 from app.models import TaskCreate, TaskInDB, UserInDB, ProjectInDB
 from app.dependencies import get_db, get_current_user

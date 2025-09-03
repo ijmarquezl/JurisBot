@@ -1,7 +1,6 @@
 from pymongo.database import Database
 from app.models import UserCreate, UserInDB, CompanyInDB
 from app.security import get_password_hash
-from bson import ObjectId # Import ObjectId
 
 def get_user(db: Database, email: str) -> UserInDB:
     user_data = db.users.find_one({"email": email})
