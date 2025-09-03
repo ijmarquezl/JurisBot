@@ -23,7 +23,7 @@ def list_users_in_company(admin_user: UserInDB = Depends(get_admin_user), db: Da
         raise HTTPException(status_code=400, detail="Admin user is not associated with a company.")
         
     users_cursor = db.users.find({"company_id": ObjectId(admin_user.company_id)})
-    users_list = [UserInDB.from_mongo(user_data).model_dump(by_alias=True) for user_data in users_cursor]
+    users_list = [UserInDB(**user_data).model_dump(by_alias=True) for user_data in users_cursor]
     logger.info(f"Admin user company_id: {admin_user.company_id}")
     logger.info(f"MongoDB query for users: {{'company_id': '{admin_user.company_id}'}}")
     logger.info(f"Users returned from list_users_in_company: {users_list}")
@@ -81,16 +81,18 @@ def update_user(user_id: str, user_update: UserUpdate, admin_user: UserInDB = De
         raise HTTPException(status_code=404, detail="User not found in this company.")
     
     update_data = user_update.dict(exclude_unset=True) # Only update provided fields
-
+    logger.info(f"Update data: {update_data}") # New log
+    
     # Prevent admin from changing their own role to non-admin
     if user_id == str(admin_user.id) and "role" in update_data and update_data["role"] != "admin":
         logger.warning(f"Admin {admin_user.email} attempted to change their own role from admin.")
         raise HTTPException(status_code=400, detail="Cannot change your own role from admin.")
 
-    db.users.update_one(
+    result = db.users.update_one( # Store result
         {"_id": ObjectId(user_id)},
         {"$set": update_data}
     )
+    logger.info(f"Update result: {result.raw_result}") # New log
     
     updated_user = db.users.find_one({"_id": ObjectId(user_id)})
     logger.info(f"User {user_id} updated successfully by admin {admin_user.email}.")
