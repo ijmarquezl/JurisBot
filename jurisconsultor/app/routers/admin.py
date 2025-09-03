@@ -22,7 +22,7 @@ def list_users_in_company(admin_user: UserInDB = Depends(get_admin_user), db: Da
     if not admin_user.company_id:
         raise HTTPException(status_code=400, detail="Admin user is not associated with a company.")
         
-    users_cursor = db.users.find({"company_id": admin_user.company_id})
+    users_cursor = db.users.find({"company_id": ObjectId(admin_user.company_id)})
     users_list = [UserInDB(**user).model_dump(by_alias=True) for user in users_cursor]
     logger.info(f"Admin user company_id: {admin_user.company_id}")
     logger.info(f"MongoDB query for users: {{'company_id': '{admin_user.company_id}'}}")
@@ -55,7 +55,7 @@ def delete_user(user_id: str, admin_user: UserInDB = Depends(get_admin_user), db
         raise HTTPException(status_code=400, detail="Cannot delete yourself.")
 
     # Find the user to delete and ensure they belong to the admin's company
-    user_to_delete = db.users.find_one({"_id": ObjectId(user_id), "company_id": admin_user.company_id})
+    user_to_delete = db.users.find_one({"_id": ObjectId(user_id), "company_id": ObjectId(admin_user.company_id)})
     if not user_to_delete:
         raise HTTPException(status_code=404, detail="User not found in this company.")
     
@@ -72,7 +72,7 @@ def update_user(user_id: str, user_update: UserUpdate, admin_user: UserInDB = De
         raise HTTPException(status_code=400, detail="Admin user is not associated with a company.")
     
     # Find the user to update and ensure they belong to the admin's company
-    user_to_update = db.users.find_one({"_id": ObjectId(user_id), "company_id": admin_user.company_id})
+    user_to_update = db.users.find_one({"_id": ObjectId(user_id), "company_id": ObjectId(admin_user.company_id)})
     
     logger.info(f"Query for user_id {user_id} returned: {user_to_update}")
 
