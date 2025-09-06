@@ -8,7 +8,7 @@ model_config = ConfigDict(
     from_attributes=True,
     populate_by_name=True,
     json_encoders={ObjectId: str}, # This will convert ObjectId to str during serialization
-    arbitrary_types_allowed=True, # Allow Pydantic to handle ObjectId directly
+    # Removed: arbitrary_types_allowed=True,
 )
 
 # --- Company Models ---
@@ -20,29 +20,30 @@ class CompanyCreate(CompanyBase):
 
 class CompanyInDB(CompanyBase):
     model_config = model_config
-    id: ObjectId # Changed to ObjectId
+    id: str = Field(alias="_id") # Changed to str
 
 # --- User Models ---
 class UserBase(BaseModel):
+
     email: str
     full_name: Optional[str] = None
 
 class UserCreate(UserBase):
     password: str
-    company_id: Optional[ObjectId] = None # Changed to ObjectId
+    company_id: Optional[str] = None # Changed to str
 
 class UserUpdate(BaseModel):
     email: Optional[str] = None
     full_name: Optional[str] = None
     password: Optional[str] = None
-    company_id: Optional[ObjectId] = None # Changed to ObjectId
+    company_id: Optional[str] = None # Changed to str
     role: Optional[str] = None
 
 class UserInDB(UserBase):
     model_config = model_config
-    id: ObjectId # Changed to ObjectId
+    id: str = Field(alias="_id") # Changed to str
     hashed_password: str
-    company_id: Optional[ObjectId] = None # Changed to ObjectId
+    company_id: Optional[str] = None # Changed to str
     role: str = "member" # e.g., admin, lead, member
 
 # --- Token Models ---
@@ -64,8 +65,8 @@ class ProjectCreate(ProjectBase):
 
 class ProjectInDB(ProjectBase):
     model_config = model_config
-    id: ObjectId # Changed to ObjectId
-    company_id: ObjectId # Changed to ObjectId
+    id: str = Field(alias="_id") # Changed to str
+    company_id: str # Changed to str
     owner_email: str
     members: List[str] = [] # List of member emails
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -81,8 +82,8 @@ class TaskCreate(TaskBase):
 
 class TaskInDB(TaskBase):
     model_config = model_config
-    id: ObjectId # Changed to ObjectId
-    project_id: ObjectId # Changed to ObjectId
+    id: str = Field(alias="_id") # Changed to str
+    project_id: str # Changed to str
     creator_email: str
     assignee_email: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
