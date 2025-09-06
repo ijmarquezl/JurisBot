@@ -11,11 +11,7 @@ def get_user(db: Database, email: str) -> UserInDB:
     user_data = db.users.find_one({"email": email})
     logger.info(f"User data from DB: {user_data}")
     if user_data:
-        # Explicitly convert ObjectId to string for Pydantic validation
-        user_data["_id"] = str(user_data["_id"])
-        if "company_id" in user_data and user_data["company_id"] is not None:
-            user_data["company_id"] = str(user_data["company_id"])
-        return UserInDB(**user_data)
+        return UserInDB(**user_data) # Removed explicit conversion
     return None
 
 def get_or_create_company(db: Database, company_name: str) -> CompanyInDB:
