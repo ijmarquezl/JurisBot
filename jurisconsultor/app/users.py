@@ -2,7 +2,6 @@ import logging
 from pymongo.database import Database
 from app.models import UserCreate, UserInDB, CompanyInDB
 from app.security import get_password_hash
-from bson import ObjectId # Import ObjectId
 
 logger = logging.getLogger(__name__)
 
@@ -11,7 +10,7 @@ def get_user(db: Database, email: str) -> UserInDB:
     user_data = db.users.find_one({"email": email})
     logger.info(f"User data from DB: {user_data}")
     if user_data:
-        return UserInDB(**user_data) # Removed explicit conversion
+        return UserInDB(**user_data) # Removed from_mongo
     return None
 
 def get_or_create_company(db: Database, company_name: str) -> CompanyInDB:
