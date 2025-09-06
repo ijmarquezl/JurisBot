@@ -8,6 +8,7 @@ model_config = ConfigDict(
     from_attributes=True,
     populate_by_name=True,
     json_encoders={ObjectId: str}, # This will convert ObjectId to str during serialization
+    arbitrary_types_allowed=True, # Allow Pydantic to handle ObjectId directly
 )
 
 # --- Company Models ---
