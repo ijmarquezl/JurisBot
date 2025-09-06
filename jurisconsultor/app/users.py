@@ -2,7 +2,6 @@ import logging
 from pymongo.database import Database
 from app.models import UserCreate, UserInDB, CompanyInDB
 from app.security import get_password_hash
-from bson import ObjectId # Import ObjectId
 
 logger = logging.getLogger(__name__)
 
