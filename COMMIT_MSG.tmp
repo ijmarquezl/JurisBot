@@ -1,0 +1,18 @@
+feat(dashboard): Implementa el Dashboard de Usuario v0.0.3
+
+Este commit introduce el Dashboard de Usuario, una característica clave de la v0.0.3 del roadmap, permitiendo la gestión de proyectos, tareas y documentos.
+
+- **Backend:**
+  - Se crea un nuevo router y un endpoint `GET /documents` para exponer los documentos legales a través del API.
+  - Se añade el modelo `DocumentInDB` para la serialización de los datos de los documentos.
+  - Se refactoriza por completo el router de `projects.py` para corregir errores, estandarizar el código y añadir resiliencia a las consultas.
+
+- **Frontend:**
+  - Se implementa la página `Dashboard.jsx` con una interfaz de pestañas para "Proyectos y Tareas" y "Documentos".
+  - **Proyectos y Tareas:**
+    - Muestra una lista de proyectos del usuario.
+    - Al seleccionar un proyecto, muestra las tareas asociadas.
+    - Permite la creación de nuevos proyectos y tareas a través de diálogos.
+    - Permite la actualización de estado de las tareas directamente en la lista.
+  - **Documentos:**
+    - Muestra una lista de los documentos legales disponibles en el sistema.

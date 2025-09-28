@@ -54,6 +54,7 @@ async def shutdown_event():
 app.include_router(projects.router)
 app.include_router(tasks.router)
 app.include_router(admin.router)
+app.include_router(documents.router)
 
 @app.post("/users/register", response_model=UserBase)
 def register(user: UserCreate, db: Database = Depends(get_db)):
