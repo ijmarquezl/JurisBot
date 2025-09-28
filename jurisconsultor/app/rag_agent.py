@@ -73,7 +73,7 @@ def get_tools_prompt():
         tools_description += f"- Tool: {name}\n  Description: {inspect.getdoc(func)}\n"
 
     prompt = f"""
-You have access to the following tools. You must respond with a JSON object indicating which tool to use, or if you should use the RAG system.
+You have access to the following tools. You must respond with a JSON object indicating which tool to use.
 The JSON object must have a "tool" key and an "args" key.
 
 Important: When using a tool that requires an ID (like 'project_id'), you must use the exact ID as it appears in the conversation history or a previous tool's output. Do not use the name of the object.
@@ -82,13 +82,14 @@ Important: When using a tool that requires an ID (like 'project_id'), you must u
 Available tools:
 {tools_description}
 - Tool: answer_with_rag
-  Description: Use this tool for general questions, legal inquiries, or any question that requires information from the knowledge base. 
+  Description: **This is the primary and most important tool.** Use it for any legal questions, requests for information about laws, articles, or legal concepts, or any general question. Only use other tools if the user explicitly asks to perform an action like "create a project" or "list tasks".
   Args:
       question (str): The user's original question.
 ---
 
-Here is an example of a multi-step thought process:
+Here are examples of multi-step thought processes:
 
+**Example 1: The user wants to perform an action.**
 User Query: "Add a task to the 'Dog Bite Case' project to 'Call the witness'."
 
 1.  First, I need to find the ID for the project named 'Dog Bite Case'. I will use the `list_projects` tool.
@@ -99,12 +100,17 @@ User Query: "Add a task to the 'Dog Bite Case' project to 'Call the witness'."
 3.  Now I can call the `create_task` tool with the correct `project_id`.
     JSON response: {{\"tool\": \"create_task\", \"args\": {{\"project_id\": \"68b444f3...\", \"title\": \"Call the witness\"}}}}
 
+**Example 2: The user asks a legal question.**
+User Query: "What does article 15 of the federal labor law say?"
+
+1.  This is a legal question, so I must use the `answer_with_rag` tool.
+    JSON response: {{\"tool\": \"answer_with_rag\", \"args\": {{\"question\": \"What does article 15 of the federal labor law say?\"}}}}
 ---
 
 If you decide to use a tool, respond with a JSON object like this:
 {{\"tool\": \"tool_name\", \"args\": {{\"arg1\": \"value1\", \"arg2\": \"value2\"}}}}
 
-If the user's query is a general question, use the RAG tool like this:
+If the user's query is a legal or general question, use the RAG tool like this:
 {{\"tool\": \"answer_with_rag\", \"args\": {{\"question\": \"the user question\"}}}}
 """
     return prompt

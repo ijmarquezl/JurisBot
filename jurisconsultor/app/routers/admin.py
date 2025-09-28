@@ -4,7 +4,7 @@ from typing import List
 from pymongo.database import Database
 from bson import ObjectId
 
-from app.models import UserCreate, UserInDB, UserBase, UserUpdate
+from app.models import UserCreate, UserInDB, UserBase, UserUpdate, PyObjectId
 from app.dependencies import get_db, get_admin_user
 from app.users import create_user, get_user
 
@@ -22,8 +22,13 @@ def list_users_in_company(admin_user: UserInDB = Depends(get_admin_user), db: Da
     if not admin_user.company_id:
         raise HTTPException(status_code=400, detail="Admin user is not associated with a company.")
         
-    users_cursor = db.users.find({"company_id": ObjectId(admin_user.company_id)})
-    users_list = [UserInDB(**user_data).model_dump(by_alias=True) for user_data in users_cursor]
+    # Query for users where company_id can be either a string or an ObjectId
+    users_cursor = db.users.find({
+        "company_id": {
+            "$in": [str(admin_user.company_id), admin_user.company_id]
+        }
+    })
+    users_list = [UserInDB(**user_data).model_dump(by_alias=False) for user_data in users_cursor]
     logger.info(f"Admin user company_id: {admin_user.company_id}")
     logger.info(f"MongoDB query for users: {{'company_id': '{admin_user.company_id}'}}")
     logger.info(f"Users returned from list_users_in_company: {users_list}")
@@ -46,24 +51,24 @@ def create_new_user(new_user: UserCreate, admin_user: UserInDB = Depends(get_adm
     return created_user.model_dump(by_alias=True)
 
 @router.delete("/users/{user_id}", status_code=204)
-def delete_user(user_id: str, admin_user: UserInDB = Depends(get_admin_user), db: Database = Depends(get_db)):
+def delete_user(user_id: PyObjectId, admin_user: UserInDB = Depends(get_admin_user), db: Database = Depends(get_db)):
     """Deletes a user from the admin's company."""
     if not admin_user.company_id:
         raise HTTPException(status_code=400, detail="Admin user is not associated with a company.")
     
-    if user_id == str(admin_user.id): # Convert ObjectId to string for comparison
+    if user_id == admin_user.id:
         raise HTTPException(status_code=400, detail="Cannot delete yourself.")
 
     # Find the user to delete and ensure they belong to the admin's company
-    user_to_delete = db.users.find_one({"_id": ObjectId(user_id), "company_id": ObjectId(admin_user.company_id)})
+    user_to_delete = db.users.find_one({"_id": user_id, "company_id": {"$in": [str(admin_user.company_id), admin_user.company_id]}})
     if not user_to_delete:
         raise HTTPException(status_code=404, detail="User not found in this company.")
     
-    db.users.delete_one({"_id": ObjectId(user_id)})
+    db.users.delete_one({"_id": user_id})
     return {"message": "User deleted successfully."}
 
 @router.put("/users/{user_id}", response_model=UserBase)
-def update_user(user_id: str, user_update: UserUpdate, admin_user: UserInDB = Depends(get_admin_user), db: Database = Depends(get_db)):
+def update_user(user_id: PyObjectId, user_update: UserUpdate, admin_user: UserInDB = Depends(get_admin_user), db: Database = Depends(get_db)):
     """Updates a user's details within the admin's company."""
     logger.info(f"Attempting to update user with ID: {user_id} by admin: {admin_user.email}")
     
@@ -72,7 +77,7 @@ def update_user(user_id: str, user_update: UserUpdate, admin_user: UserInDB = De
         raise HTTPException(status_code=400, detail="Admin user is not associated with a company.")
     
     # Find the user to update and ensure they belong to the admin's company
-    user_to_update = db.users.find_one({"_id": ObjectId(user_id), "company_id": ObjectId(admin_user.company_id)})
+    user_to_update = db.users.find_one({"_id": user_id, "company_id": {"$in": [str(admin_user.company_id), admin_user.company_id]}})
     
     logger.info(f"Query for user_id {user_id} returned: {user_to_update}")
 
@@ -84,16 +89,16 @@ def update_user(user_id: str, user_update: UserUpdate, admin_user: UserInDB = De
     logger.info(f"Update data: {update_data}") # New log
     
     # Prevent admin from changing their own role to non-admin
-    if user_id == str(admin_user.id) and "role" in update_data and update_data["role"] != "admin":
+    if user_id == admin_user.id and "role" in update_data and update_data["role"] != "admin":
         logger.warning(f"Admin {admin_user.email} attempted to change their own role from admin.")
         raise HTTPException(status_code=400, detail="Cannot change your own role from admin.")
 
     result = db.users.update_one( # Store result
-        {"_id": ObjectId(user_id)},
+        {"_id": user_id},
         {"$set": update_data}
     )
     logger.info(f"Update result: {result.raw_result}") # New log
     
-    updated_user = db.users.find_one({"_id": ObjectId(user_id)})
+    updated_user = db.users.find_one({"_id": user_id})
     logger.info(f"User {user_id} updated successfully by admin {admin_user.email}.")
     return UserBase(**updated_user).model_dump(by_alias=True)

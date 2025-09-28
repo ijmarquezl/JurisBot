@@ -134,11 +134,10 @@ def read_root():
     return {"status": "ok"}
 
 @app.post("/ask")
-def ask(request: AskRequest, token: str = Depends(oauth2_scheme)):
+def ask(request: AskRequest, user: UserInDB = Depends(get_current_user), token: str = Depends(oauth2_scheme)):
     """
     Endpoint to interact with the conversational agent.
     """
-    user = get_current_user(token, get_db())
     logger.info(f"User {user.email} is asking: '{request.question}'")
     answer = run_agent(user_query=request.question, history=request.history, auth_token=token)
     logger.info(f"Agent provided answer to {user.email}.")

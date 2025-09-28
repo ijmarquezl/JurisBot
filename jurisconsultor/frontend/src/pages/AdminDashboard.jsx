@@ -104,13 +104,20 @@ function AdminDashboard() {
       if (!updateData.password) {
         delete updateData.password; // Don't send empty password
       }
-      logger.log("currentUser.id before PUT request:", currentUser.id); // Debug log
-      await apiClient.put(`/admin/users/${currentUser.id}`, updateData);
+      logger.log("currentUser.id before PUT request:", currentUser._id); // Debug log
+      await apiClient.put(`/admin/users/${currentUser._id}`, updateData);
       logger.log('User updated successfully:', currentUser.email);
       fetchUsers(); // Refresh the user list
       handleCloseEditDialog();
     } catch (err) {
-      setEditError(err.response?.data?.detail || 'Error al actualizar usuario.');
+      const errorDetail = err.response?.data?.detail;
+      if (Array.isArray(errorDetail) && errorDetail.length > 0) {
+        const firstError = errorDetail[0];
+        const field = firstError.loc[firstError.loc.length - 1];
+        setEditError(`Error en el campo '${field}': ${firstError.msg}`);
+      } else {
+        setEditError(errorDetail || 'Error al actualizar usuario.');
+      }
       logger.error('Error updating user:', err);
     } finally {
       setEditLoading(false);
@@ -133,7 +140,7 @@ function AdminDashboard() {
     setDeleteLoading(true);
     setDeleteError('');
     try {
-      await apiClient.delete(`/admin/users/${userToDelete.id}`);
+      await apiClient.delete(`/admin/users/${userToDelete._id}`);
       logger.log('User deleted successfully:', userToDelete.email);
       fetchUsers(); // Refresh the user list
       handleCloseDeleteConfirm();
@@ -173,7 +180,7 @@ function AdminDashboard() {
             </TableHead>
             <TableBody>
               {users.map((user) => (
-                <TableRow key={user.id}>
+                <TableRow key={user._id}>
                   <TableCell>{user.email}</TableCell>
                   <TableCell>{user.full_name}</TableCell>
                   <TableCell>{user.role}</TableCell>
