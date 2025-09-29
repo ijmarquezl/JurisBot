@@ -40,6 +40,8 @@ services:
       SECRET_KEY: a_super_secret_key_for_development_change_this
       ALGORITHM: HS256
       ACCESS_TOKEN_EXPIRE_MINUTES: 30
+    volumes:
+      - ./jurisconsultor/documentos_legales:/docs # Mount local documents into the container
     networks:
       - jurisconsultor-net
 

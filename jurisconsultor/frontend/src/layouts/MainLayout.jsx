@@ -13,7 +13,7 @@ function MainLayout({ onLogout }) {
             </RouterLink>
           </Typography>
           <Button color="inherit" component={RouterLink} to="/dashboard">
-            Chat
+            Proyectos
           </Button>
           <Button color="inherit" component={RouterLink} to="/admin">
             Admin

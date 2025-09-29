@@ -42,6 +42,17 @@ def main(db_type: str):
         """)
         print(f"Documents table created successfully for {db_type} database.")
 
+        # Create the document_ownership table
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS document_ownership (
+                id SERIAL PRIMARY KEY,
+                source VARCHAR(255) NOT NULL,
+                company_id VARCHAR(255) NOT NULL,
+                UNIQUE (source, company_id)
+            );
+        """)
+        print(f"Document ownership table created successfully for {db_type} database.")
+
         conn.commit()
         cur.close()
         conn.close()

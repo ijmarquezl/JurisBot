@@ -10,11 +10,11 @@ from typing import Optional, List
 
 from app.logging_config import LOGGING_CONFIG
 from app.rag_agent import run_agent
-from app.models import UserCreate, UserInDB, Token, TokenData, UserBase
+from app.models import UserCreate, UserInDB, Token, TokenData, UserBase, UserResponse
 from app.security import create_access_token, create_refresh_token, verify_password, verify_token
 from app.users import create_user, get_user
 from app.utils import get_mongo_client
-from app.routers import projects, tasks, admin
+from app.routers import projects, tasks, admin, documents
 from app.dependencies import get_db, get_current_user, oauth2_scheme
 
 # Apply logging configuration
@@ -118,7 +118,7 @@ def refresh_access_token(refresh_token: str = Body(..., embed=True), db: Databas
         logger.error("Invalid refresh token.", exc_info=True)
         raise HTTPException(status_code=401, detail="Invalid refresh token")
 
-@app.get("/users/me", response_model=UserBase)
+@app.get("/users/me", response_model=UserResponse)
 def read_users_me(current_user: UserInDB = Depends(get_current_user)):
     """Get the current logged-in user."""
     return current_user
