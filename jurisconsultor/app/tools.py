@@ -1,5 +1,8 @@
 import requests
 import json
+import os
+import re
+import docx
 
 # This module defines the tools the AI agent can use.
 # Each function in this module corresponds to a tool.
@@ -7,6 +10,8 @@ import json
 
 _auth_token = None
 API_BASE_URL = "http://127.0.0.1:8000"
+TEMPLATE_DIR = "formatos/"
+
 
 def set_auth_token(token: str):
     """Sets the authentication token for the API calls."""
@@ -21,6 +26,46 @@ def _get_headers():
         "Authorization": f"Bearer {_auth_token}",
         "Content-Type": "application/json",
     }
+
+def get_template_placeholders(template_name: str) -> str:
+    """
+    Reads a .docx template file and extracts all placeholders in the format {{placeholder}}.
+    Use this tool to find out what information is needed to fill a document template.
+    The user must provide the full template name, for example: 'FORMATO DE DEMANDA CIVIL EN GENERAL.docx'.
+
+    Args:
+        template_name (str): The name of the template file (e.g., "my_template.docx").
+
+    Returns:
+        str: A JSON string containing a list of unique placeholders found in the document.
+    """
+    try:
+        template_path = os.path.join(TEMPLATE_DIR, template_name)
+        if not os.path.exists(template_path):
+            return json.dumps({"error": f"Template '{template_name}' not found in '{TEMPLATE_DIR}'."})
+
+        doc = docx.Document(template_path)
+        placeholders = set()
+        placeholder_regex = re.compile(r"{{(.*?)}})")
+
+        for para in doc.paragraphs:
+            for match in placeholder_regex.finditer(para.text):
+                placeholders.add(match.group(1).strip())
+
+        for table in doc.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    for para in cell.paragraphs:
+                        for match in placeholder_regex.finditer(para.text):
+                            placeholders.add(match.group(1).strip())
+        
+        if not placeholders:
+             return json.dumps({"error": f"No placeholders like '{{{{field}}}}' found in the template '{template_name}'."})
+
+        return json.dumps(list(placeholders))
+    except Exception as e:
+        return json.dumps({"error": f"Failed to read template and extract placeholders. {e}"})
+
 
 def list_projects() -> str:
     """
@@ -81,6 +126,7 @@ def create_task(project_id: str, title: str, description: str = None) -> str:
     except Exception as e:
         return json.dumps({"error": f"Failed to create task. {e}"})
 
+
 def list_tasks(project_id: str) -> str:
     """
     Lists all tasks for a specific project using its ID.
@@ -99,3 +145,21 @@ def list_tasks(project_id: str) -> str:
         return json.dumps(tasks_data)
     except Exception as e:
         return json.dumps({"error": f"Failed to list tasks. {e}"})
+
+
+def list_documents() -> str:
+    """
+
+    Lists all generated documents the user has access to.
+    Use this tool when the user asks to see their documents.
+    
+    Returns:
+        str: A JSON string representing the list of documents.
+    """
+    try:
+        response = requests.get(f"{API_BASE_URL}/documents/", headers=_get_headers())
+        response.raise_for_status()
+        documents = response.json()
+        return json.dumps(documents)
+    except Exception as e:
+        return json.dumps({"error": f"Failed to list documents. {e}"})

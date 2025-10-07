@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { 
     Typography, Box, Grid, Paper, List, ListItem, ListItemButton, ListItemText, 
     CircularProgress, Divider, Button, Chip, Stack, TextField, Dialog, 
-    DialogActions, DialogContent, DialogTitle, IconButton, Select, MenuItem, FormControl, 
+    DialogActions, DialogContent, DialogTitle, IconButton, Select, MenuItem, FormControl, InputLabel, 
     Tabs, Tab, Card, CardContent, Switch, FormControlLabel
 } from '@mui/material';
 import { Add as AddIcon, Send as SendIcon, Delete as DeleteIcon, Archive as ArchiveIcon, Unarchive as UnarchiveIcon } from '@mui/icons-material';
@@ -100,6 +100,66 @@ function DeleteProjectConfirmDialog({ open, onClose, onConfirmed, project }) {
 }
 
 
+function CreateDocumentDialog({ open, onClose, onCreated, projects }) {
+    const [fileName, setFileName] = useState('');
+    const [projectId, setProjectId] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+
+    const handleCreate = async () => {
+        if (!fileName.trim() || !projectId) {
+            setError("El nombre del archivo y el proyecto son obligatorios.");
+            return;
+        }
+        setLoading(true); setError('');
+        try {
+            await apiClient.post('/documents/', { file_name: fileName, project_id: projectId });
+            setFileName(''); setProjectId('');
+            onCreated();
+            onClose();
+        } catch (err) {
+            logger.error("Error creating document:", err);
+            setError(err.response?.data?.detail || 'Error al crear el documento.');
+        } finally { setLoading(false); }
+    };
+
+    return (
+        <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+            <DialogTitle>Crear Nuevo Documento</DialogTitle>
+            <DialogContent>
+                <Stack spacing={2} sx={{ mt: 1 }}>
+                    <TextField
+                        autoFocus
+                        label="Nombre del Documento"
+                        value={fileName}
+                        onChange={(e) => setFileName(e.target.value)}
+                        fullWidth
+                    />
+                    <FormControl fullWidth>
+                        <InputLabel>Proyecto</InputLabel>
+                        <Select
+                            value={projectId}
+                            label="Proyecto"
+                            onChange={(e) => setProjectId(e.target.value)}
+                        >
+                            {projects.map((p) => (
+                                <MenuItem key={p._id} value={p._id}>{p.name}</MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+                </Stack>
+                {error && <Typography color="error" sx={{ mt: 2 }}>{error}</Typography>}
+            </DialogContent>
+            <DialogActions>
+                <Button onClick={onClose}>Cancelar</Button>
+                <Button onClick={handleCreate} variant="contained" disabled={loading}>
+                    {loading ? <CircularProgress size={24} /> : 'Crear'}
+                </Button>
+            </DialogActions>
+        </Dialog>
+    );
+}
+
 // Main Dashboard Component
 function Dashboard() {
   const [tab, setTab] = useState(0);
@@ -120,6 +180,7 @@ function Dashboard() {
   const [openCreateProject, setOpenCreateProject] = useState(false);
   const [openCreateTask, setOpenCreateTask] = useState(false);
   const [openDeleteProject, setOpenDeleteProject] = useState(false);
+  const [openCreateDocument, setOpenCreateDocument] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState(null);
   // Project filter state
   const [includeArchivedProjects, setIncludeArchivedProjects] = useState(false);
@@ -170,7 +231,8 @@ function Dashboard() {
   }, [fetchCurrentUser]);
 
   useEffect(() => {
-    if (tab === 0) fetchProjects();
+    // Fetch projects for both tabs 0 and 1, as tab 1 needs project names
+    if (tab === 0 || tab === 1) fetchProjects();
     if (tab === 1) fetchDocuments();
   }, [tab, fetchProjects, fetchDocuments]);
 
@@ -237,6 +299,7 @@ function Dashboard() {
       <CreateProjectDialog open={openCreateProject} onClose={() => setOpenCreateProject(false)} onCreated={fetchProjects} />
       <CreateTaskDialog open={openCreateTask} onClose={() => setOpenCreateTask(false)} onCreated={() => fetchTasks(selectedProject?._id)} projectId={selectedProject?._id} />
       <DeleteProjectConfirmDialog open={openDeleteProject} onClose={() => setOpenDeleteProject(false)} onConfirmed={fetchProjects} project={projectToDelete} />
+      <CreateDocumentDialog open={openCreateDocument} onClose={() => setOpenCreateDocument(false)} onCreated={fetchDocuments} projects={projects} />
 
       <Typography variant="h4" gutterBottom>Dashboard</Typography>
       
@@ -256,7 +319,7 @@ function Dashboard() {
           <Grid item xs={12} md={4}>
             <Stack direction="row" justifyContent="space-between" alignItems="center">
               <Typography variant="h6">Proyectos</Typography>
-              <Button startIcon={<AddIcon />} onClick={() => setOpenCreateProject(true)}>Crear</Button>
+              {canManageProjects && <Button startIcon={<AddIcon />} onClick={() => setOpenCreateProject(true)}>Crear</Button>}
             </Stack>
             <FormControlLabel
                 control={<Switch checked={includeArchivedProjects} onChange={(e) => setIncludeArchivedProjects(e.target.checked)} />}
@@ -313,21 +376,46 @@ function Dashboard() {
         </Grid>
       )}
 
-      {/* Tab Panel for Documents */}
+      {/* Tab Panel for Generated Documents */}
       {tab === 1 && (
-        <Box>{loading ? <Box sx={{ p: 2, textAlign: 'center' }}><CircularProgress /></Box> : (
+        <Box>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+            <Typography variant="h6">Documentos Generados</Typography>
+            <Button startIcon={<AddIcon />} onClick={() => setOpenCreateDocument(true)}>
+              Crear Documento
+            </Button>
+          </Stack>
+          {loading ? <Box sx={{ p: 2, textAlign: 'center' }}><CircularProgress /></Box> : (
             <Grid container spacing={2}>
-              {documents.map((doc) => (
-                <Grid item xs={12} sm={6} md={4} key={doc.id}>
-                  <Card variant="outlined">
-                    <CardContent>
-                      <Typography sx={{ fontSize: 14 }} color="text.secondary" gutterBottom>{doc.source}</Typography>
-                      <Typography variant="body2" sx={{ maxHeight: 100, overflow: 'hidden', textOverflow: 'ellipsis' }}>{doc.content}</Typography>
-                    </CardContent>
-                  </Card>
-                </Grid>
-              ))}
+              {documents.map((doc) => {
+                const project = projects.find(p => p._id === doc.project_id);
+                return (
+                  <Grid item xs={12} sm={6} md={4} key={doc.id}>
+                    <Card variant="outlined">
+                      <CardContent>
+                        <Typography variant="h6" component="div" noWrap>
+                          {doc.file_name}
+                        </Typography>
+                        <Typography sx={{ mb: 1.5 }} color="text.secondary">
+                          {project ? `Proyecto: ${project.name}` : 'Proyecto no encontrado'}
+                        </Typography>
+                        <Typography variant="body2">
+                          Propietario: {doc.owner_email}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          Ruta: {doc.file_path}
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                );
+              })}
             </Grid>
+          )}
+          {!loading && documents.length === 0 && (
+            <Typography sx={{ p: 2, textAlign: 'center', color: 'text.secondary' }}>
+              No se han generado documentos.
+            </Typography>
           )}
         </Box>
       )}
@@ -337,8 +425,27 @@ function Dashboard() {
         <Paper elevation={2} sx={{ height: '70vh', display: 'flex', flexDirection: 'column' }}>
             <Box sx={{ flexGrow: 1, overflow: 'auto', p: 2 }}>
                 {chatHistory.map((msg, index) => (
-                    <Box key={index} sx={{ mb: 2, textAlign: msg.sender === 'user' ? 'right' : 'left' }}>
-                        <Chip label={msg.text} color={msg.sender === 'user' ? 'primary': 'default'} sx={{ height: 'auto', p: 1, whiteSpace: 'normal' }} />
+                    <Box
+                        key={index}
+                        sx={{
+                            mb: 2,
+                            display: 'flex',
+                            justifyContent: msg.sender === 'user' ? 'flex-end' : 'flex-start',
+                        }}
+                    >
+                        <Paper
+                            elevation={1}
+                            sx={{
+                                p: 1.5,
+                                borderRadius: msg.sender === 'user' ? '20px 20px 5px 20px' : '20px 20px 20px 5px',
+                                backgroundColor: msg.sender === 'user' ? 'primary.main' : 'grey.300',
+                                color: msg.sender === 'user' ? 'primary.contrastText' : 'text.primary',
+                                maxWidth: '90%',
+                                wordWrap: 'break-word',
+                            }}
+                        >
+                            <Typography variant="body1">{msg.text}</Typography>
+                        </Paper>
                     </Box>
                 ))}
                 {isAgentTyping && <CircularProgress size={24} sx={{ ml: 1 }} />}

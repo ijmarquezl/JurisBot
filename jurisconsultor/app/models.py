@@ -132,3 +132,18 @@ class DocumentBase(BaseModel):
 class DocumentInDB(DocumentBase):
     model_config = model_config
     id: int # Postgres uses integer IDs
+
+# --- Generated Document Models ---
+class GeneratedDocumentBase(BaseModel):
+    file_name: str
+    project_id: PyObjectId
+    owner_email: str
+
+class GeneratedDocumentCreate(GeneratedDocumentBase):
+    pass
+
+class GeneratedDocumentInDB(GeneratedDocumentBase):
+    model_config = model_config
+    id: PyObjectId = Field(alias='_id')
+    file_path: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
