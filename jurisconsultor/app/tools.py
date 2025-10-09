@@ -3,6 +3,7 @@ import json
 import os
 import re
 import docx
+from datetime import datetime
 
 # This module defines the tools the AI agent can use.
 # Each function in this module corresponds to a tool.
@@ -10,8 +11,8 @@ import docx
 
 _auth_token = None
 API_BASE_URL = "http://127.0.0.1:8000"
-TEMPLATE_DIR = "formatos/"
-
+TEMPLATE_DIR = "../formatos/"
+GENERATED_DOCS_PATH = "../documentos_generados/"
 
 def set_auth_token(token: str):
     """Sets the authentication token for the API calls."""
@@ -46,7 +47,7 @@ def get_template_placeholders(template_name: str) -> str:
 
         doc = docx.Document(template_path)
         placeholders = set()
-        placeholder_regex = re.compile(r"{{(.*?)}})")
+        placeholder_regex = re.compile(r"{{(.*?)}}")
 
         for para in doc.paragraphs:
             for match in placeholder_regex.finditer(para.text):
@@ -60,12 +61,68 @@ def get_template_placeholders(template_name: str) -> str:
                             placeholders.add(match.group(1).strip())
         
         if not placeholders:
-             return json.dumps({"error": f"No placeholders like '{{{{field}}}}' found in the template '{template_name}'."})
+             return json.dumps({"error": f"No placeholders like '{{field}}' found in the template '{template_name}'."})
 
         return json.dumps(list(placeholders))
     except Exception as e:
         return json.dumps({"error": f"Failed to read template and extract placeholders. {e}"})
 
+def fill_template_and_save_document(template_name: str, project_id: str, document_name: str, context: dict) -> str:
+    """
+    Fills a .docx template with the provided context and saves it as a new document.
+    This is the final step in the document generation workflow. Use it only after you have collected all the necessary information for the placeholders.
+
+    Args:
+        template_name (str): The name of the template file (e.g., "FORMATO DE DEMANDA CIVIL EN GENERAL.docx").
+        project_id (str): The ID of the project this document belongs to.
+        document_name (str): The desired name for the new document (without extension).
+        context (dict): A dictionary where keys are the placeholder names and values are the text to insert.
+
+    Returns:
+        str: A JSON string with the path to the newly created document or an error message.
+    """
+    try:
+        template_path = os.path.join(TEMPLATE_DIR, template_name)
+        if not os.path.exists(template_path):
+            return json.dumps({"error": f"Template '{template_name}' not found."})
+
+        doc = docx.Document(template_path)
+
+        # Replace placeholders in paragraphs
+        for para in doc.paragraphs:
+            for key, value in context.items():
+                search_text = f"{{{{{key}}}}}"
+                if search_text in para.text:
+                    para.text = para.text.replace(search_text, str(value))
+
+        # Replace placeholders in tables
+        for table in doc.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    for para in cell.paragraphs:
+                        for key, value in context.items():
+                            search_text = f"{{{{{key}}}}}"
+                            if search_text in para.text:
+                                para.text = para.text.replace(search_text, str(value))
+
+        # Save the new document
+        new_file_name = f"{document_name.replace(' ', '_')}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.docx"
+        new_file_path = os.path.join(GENERATED_DOCS_PATH, new_file_name)
+        doc.save(new_file_path)
+
+        # Register the new document in the database via API call
+        register_payload = {
+            "file_name": document_name,
+            "project_id": project_id,
+            "file_path": new_file_path
+        }
+        response = requests.post(f"{API_BASE_URL}/documents/register", headers=_get_headers(), json=register_payload)
+        response.raise_for_status()
+        
+        return json.dumps({"success": True, "file_path": new_file_path, "details": response.json()})
+
+    except Exception as e:
+        return json.dumps({"error": f"Failed to fill and save document. {e}"})
 
 def list_projects() -> str:
     """

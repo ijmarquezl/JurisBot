@@ -72,20 +72,34 @@ def get_tools_prompt():
             continue
         tools_description += f"- Tool: {name}\n  Description: {inspect.getdoc(func)}\n"
 
-    prompt = f"""
-You have access to the following tools. You must respond with a JSON object indicating which tool to use.
+    prompt_template = """You have access to the following tools. You must respond with a JSON object indicating which tool to use.
 The JSON object must have a "tool" key and an "args" key.
 
 Important: When using a tool that requires an ID (like 'project_id'), you must use the exact ID as it appears in the conversation history or a previous tool's output. Do not use the name of the object.
 
 ---
 Available tools:
-{tools_description}
+{tools_placeholder}
+- Tool: continue_conversation
+  Description: Use this tool ONLY when you are in the middle of a multi-step process (like Document Generation) and you need to ask the user for more information or confirm what you have collected so far. DO NOT use this for general conversation.
+  Args:
+      question_to_user (str): The specific question you want to ask the user.
+
 - Tool: answer_with_rag
   Description: **This is the primary and most important tool.** Use it for any legal questions, requests for information about laws, articles, or legal concepts, or any general question. Only use other tools if the user explicitly asks to perform an action like "create a project" or "list tasks".
   Args:
       question (str): The user's original question.
 ---
+
+**Document Generation Workflow:**
+This is a special multi-step process. Follow these steps exactly.
+1. The user asks to generate a document from a template.
+2. Use `get_template_placeholders` to find the needed fields.
+3. The tool returns a list of fields. Your first response to the user should be to start the process, asking for the very first placeholder in the list. Use the `continue_conversation` tool for this. For example: "Claro, empecemos a llenar la plantilla. Primero, ¿cuál es el nombre completo del demandante?"
+4. The user will provide an answer. Confirm you received it and then ask for the NEXT placeholder in the list. Continue this one-by-one question and answer process using `continue_conversation` until most placeholders are filled.
+5. **SPECIAL RULE for legal articles:** If you encounter placeholders like `articulos_aplicables`, `articulos_normativos`, or `jurisprudencia_aplicable`, DO NOT ask the user for this. Instead, once you have collected the `hechos` (facts) of the case, use the `answer_with_rag` tool. The question for the RAG tool should be: "Based on the following facts: [insert the collected facts here], what legal articles and laws are applicable?". Use the output of the RAG tool to fill these placeholders internally.
+6. Once all placeholders are filled (including the ones you filled yourself using the RAG tool), use `continue_conversation` one last time to ask the user for the desired `document_name` for the new file and which `project_id` it belongs to.
+7. Finally, with all information gathered, call `fill_template_and_save_document` to create the document.
 
 Here are examples of multi-step thought processes:
 
@@ -93,27 +107,27 @@ Here are examples of multi-step thought processes:
 User Query: "Add a task to the 'Dog Bite Case' project to 'Call the witness'."
 
 1.  First, I need to find the ID for the project named 'Dog Bite Case'. I will use the `list_projects` tool.
-    JSON response: {{\"tool\": \"list_projects\", \"args\": {{}}}}
+    JSON response: {{"tool": "list_projects", "args": {{}}}}
 
-2.  The tool will return a result like this: `[...{{\"id\": \"68b444f3...\", \"name\": \"Dog Bite Case\", ...}}]`. Now I have the project_id.
+2.  The tool will return a result like this: `[...{{"id": "68b444f3...", "name": "Dog Bite Case", ...}}]`. Now I have the project_id.
 
 3.  Now I can call the `create_task` tool with the correct `project_id`.
-    JSON response: {{\"tool\": \"create_task\", \"args\": {{\"project_id\": \"68b444f3...\", \"title\": \"Call the witness\"}}}}
+    JSON response: {{"tool": "create_task", "args": {{"project_id": "68b444f3...", "title": "Call the witness"}}}}
 
 **Example 2: The user asks a legal question.**
 User Query: "What does article 15 of the federal labor law say?"
 
 1.  This is a legal question, so I must use the `answer_with_rag` tool.
-    JSON response: {{\"tool\": \"answer_with_rag\", \"args\": {{\"question\": \"What does article 15 of the federal labor law say?\"}}}}
+    JSON response: {{"tool": "answer_with_rag", "args": {{"question": "What does article 15 of the federal labor law say?"}}}}
 ---
 
 If you decide to use a tool, respond with a JSON object like this:
-{{\"tool\": \"tool_name\", \"args\": {{\"arg1\": \"value1\", \"arg2\": \"value2\"}}}}
+{{"tool": "tool_name", "args": {{"arg1": "value1", "arg2": "value2"}}}}
 
 If the user's query is a legal or general question, use the RAG tool like this:
-{{\"tool\": \"answer_with_rag\", \"args\": {{\"question\": \"the user question\"}}}}
+{{"tool": "answer_with_rag", "args": {{"question": "the user question"}}}}
 """
-    return prompt
+    return prompt_template.format(tools_placeholder=tools_description)
 
 def run_agent(user_query: str, auth_token: str, history: Optional[List[str]] = None) -> str:
     """The main function to run the conversational agent."""
@@ -146,6 +160,11 @@ def run_agent(user_query: str, auth_token: str, history: Optional[List[str]] = N
         # 4. Execute the selected tool
         if tool_name == "answer_with_rag":
             return answer_with_rag(**args)
+        
+        elif tool_name == "continue_conversation":
+            # This is a pseudo-tool. Just return the question to the user.
+            return args.get("question_to_user", "I'm not sure what to ask next. Can you please clarify?")
+
         elif hasattr(tools, tool_name):
             tool_function = getattr(tools, tool_name)
             tool_result = tool_function(**args)
@@ -154,8 +173,8 @@ def run_agent(user_query: str, auth_token: str, history: Optional[List[str]] = N
 
         # 5. Formulate a natural language response based on the tool's result
         response_formulation_prompt = f"""
-        The user asked: "{user_query}"
-        You decided to use the tool: "{tool_name}"
+        The user asked: \"{user_query}\"
+        You decided to use the tool: \"{tool_name}\"
         The result from the tool is:
         ---
         {tool_result}

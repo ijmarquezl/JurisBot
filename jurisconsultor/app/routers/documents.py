@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pymongo.database import Database
 from typing import List
 from datetime import datetime
+from pydantic import BaseModel
 
 from app.models import (
     GeneratedDocumentCreate,
@@ -18,6 +19,11 @@ router = APIRouter(
 )
 
 GENERATED_DOCS_PATH = "documentos_generados/"
+
+class RegisterDocumentRequest(BaseModel):
+    file_name: str
+    project_id: PyObjectId
+    file_path: str
 
 @router.post("/", response_model=GeneratedDocumentInDB, status_code=status.HTTP_201_CREATED)
 def create_document(
@@ -56,6 +62,36 @@ def create_document(
     doc_data = doc_in.dict()
     doc_data["owner_email"] = current_user.email
     doc_data["file_path"] = file_path
+    
+    result = db.generated_documents.insert_one(doc_data)
+    created_doc = db.generated_documents.find_one({"_id": result.inserted_id})
+
+    return GeneratedDocumentInDB(**created_doc)
+
+@router.post("/register", response_model=GeneratedDocumentInDB, status_code=status.HTTP_201_CREATED)
+def register_document(
+    doc_in: RegisterDocumentRequest,
+    db: Database = Depends(get_db),
+    current_user: UserInDB = Depends(get_current_user),
+):
+    """
+    Registers a pre-generated document file in the database.
+    This is intended to be called by an internal tool after a document has been created from a template.
+    """
+    # Verify the project exists and the user is a member of it
+    project = db.projects.find_one({
+        "_id": doc_in.project_id,
+        "members": current_user.email
+    })
+    if not project:
+        raise HTTPException(
+            status_code=404,
+            detail="Project not found or user is not a member.",
+        )
+
+    # Create the DB record
+    doc_data = doc_in.dict()
+    doc_data["owner_email"] = current_user.email
     
     result = db.generated_documents.insert_one(doc_data)
     created_doc = db.generated_documents.find_one({"_id": result.inserted_id})
