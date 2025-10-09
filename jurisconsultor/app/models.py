@@ -147,3 +147,12 @@ class GeneratedDocumentInDB(GeneratedDocumentBase):
     id: PyObjectId = Field(alias='_id')
     file_path: str
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+# --- Agent Conversation State Models ---
+class ConversationState(BaseModel):
+    model_config = model_config
+    id: PyObjectId = Field(alias='_id', default_factory=PyObjectId)
+    user_email: str
+    workflow: Optional[str] = None
+    workflow_data: dict = Field(default_factory=dict)
+    last_updated: datetime = Field(default_factory=datetime.utcnow)

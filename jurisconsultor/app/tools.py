@@ -70,7 +70,7 @@ def get_template_placeholders(template_name: str) -> str:
 def fill_template_and_save_document(template_name: str, project_id: str, document_name: str, context: dict) -> str:
     """
     Fills a .docx template with the provided context and saves it as a new document.
-    This is the final step in the document generation workflow. Use it only after you have collected all the necessary information for the placeholders.
+    This is the final step in the document generation workflow.
 
     Args:
         template_name (str): The name of the template file (e.g., "FORMATO DE DEMANDA CIVIL EN GENERAL.docx").
@@ -81,6 +81,10 @@ def fill_template_and_save_document(template_name: str, project_id: str, documen
     Returns:
         str: A JSON string with the path to the newly created document or an error message.
     """
+    # Guard to prevent premature execution
+    if not document_name or not project_id or not context:
+        return json.dumps({"error": "This tool was called too early. You must collect all information from the user (placeholders, document_name, project_id) BEFORE calling this tool."})
+
     try:
         template_path = os.path.join(TEMPLATE_DIR, template_name)
         if not os.path.exists(template_path):

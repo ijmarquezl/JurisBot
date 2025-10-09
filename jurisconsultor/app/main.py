@@ -9,7 +9,9 @@ from pydantic import BaseModel
 from typing import Optional, List
 
 from app.logging_config import LOGGING_CONFIG
-from app.rag_agent import run_agent
+from app.graph_agent import graph # New LangGraph agent
+from langchain_core.messages import HumanMessage
+
 from app.models import UserCreate, UserInDB, Token, TokenData, UserBase, UserResponse
 from app.security import create_access_token, create_refresh_token, verify_password, verify_token
 from app.users import create_user, get_user
@@ -24,7 +26,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="Jurisconsultor API",
     description="API for the Jurisconsultor AI agent.",
-    version="0.4.0",
+    version="0.5.0", # Version bump for new architecture
 )
 
 # --- CORS Middleware ---
@@ -125,7 +127,6 @@ def read_users_me(current_user: UserInDB = Depends(get_current_user)):
 
 class AskRequest(BaseModel):
     question: str
-    history: Optional[List[str]] = None
 
 @app.get("/")
 def read_root():
@@ -135,11 +136,22 @@ def read_root():
     return {"status": "ok"}
 
 @app.post("/ask")
-def ask(request: AskRequest, user: UserInDB = Depends(get_current_user), token: str = Depends(oauth2_scheme)):
+async def ask(
+    request: AskRequest,
+    current_user: UserInDB = Depends(get_current_user),
+):
     """
-    Endpoint to interact with the conversational agent.
+    Endpoint to interact with the new LangGraph conversational agent.
     """
-    logger.info(f"User {user.email} is asking: '{request.question}'")
-    answer = run_agent(user_query=request.question, history=request.history, auth_token=token)
-    logger.info(f"Agent provided answer to {user.email}.")
-    return {"answer": answer}
+    logger.info(f"User {current_user.email} is asking: '{request.question}'")
+    
+    config = {"configurable": {"thread_id": current_user.email}}
+    inputs = {"messages": [HumanMessage(content=request.question)]}
+    final_answer = "Lo siento, no pude procesar tu solicitud."
+    
+    async for event in graph.astream(inputs, config=config):
+        if "manager" in event:
+            final_answer = event["manager"]["messages"][-1].content
+
+    logger.info(f"Agent provided answer to {current_user.email}.")
+    return {"answer": final_answer}
