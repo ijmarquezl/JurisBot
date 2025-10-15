@@ -5,86 +5,83 @@ import re
 import docx
 from datetime import datetime
 
-# This module defines the tools the AI agent can use.
-# Each function in this module corresponds to a tool.
-# The function's docstring is crucial as it will be used by the LLM to understand what the tool does.
+# This module defines the core logic for the tools the AI agent can use.
 
-_auth_token = None
 API_BASE_URL = "http://127.0.0.1:8000"
 TEMPLATE_DIR = "../formatos/"
 GENERATED_DOCS_PATH = "../documentos_generados/"
 
+_auth_token = None
+
 def set_auth_token(token: str):
-    """Sets the authentication token for the API calls."""
+    """Sets the authentication token for the API calls for the current turn."""
     global _auth_token
     _auth_token = token
 
-def _get_headers():
+def _get_headers() -> dict:
     """Helper function to get authentication headers."""
     if not _auth_token:
-        raise Exception("Authentication token not set.")
+        # This clear error message is crucial for the agent to understand the problem.
+        raise ValueError("Authentication token not set. I cannot use tools that require API calls. I must inform the user about a potential login issue.")
     return {
         "Authorization": f"Bearer {_auth_token}",
         "Content-Type": "application/json",
     }
 
 def get_template_placeholders(template_name: str) -> str:
-    """
-    Reads a .docx template file and extracts all placeholders in the format {{placeholder}}.
-    Use this tool to find out what information is needed to fill a document template.
-    The user must provide the full template name, for example: 'FORMATO DE DEMANDA CIVIL EN GENERAL.docx'.
-
-    Args:
-        template_name (str): The name of the template file (e.g., "my_template.docx").
-
-    Returns:
-        str: A JSON string containing a list of unique placeholders found in the document.
-    """
+    """Reads a .docx template and extracts its placeholders in a robust manner."""
     try:
         template_path = os.path.join(TEMPLATE_DIR, template_name)
         if not os.path.exists(template_path):
-            return json.dumps({"error": f"Template '{template_name}' not found in '{TEMPLATE_DIR}'."})
-
+            return json.dumps({"error": f"Template '{template_name}' not found."})
+        
         doc = docx.Document(template_path)
         placeholders = set()
-        placeholder_regex = re.compile(r"{{(.*?)}}")
+        
+        # Regex to find placeholders, including those split across runs
+        placeholder_regex = re.compile(r'{{(.*?)}}')
 
-        for para in doc.paragraphs:
-            for match in placeholder_regex.finditer(para.text):
+        # Function to extract placeholders from a text block (paragraph or cell)
+        def extract_from_block(block):
+            # Reassemble text from runs to handle split placeholders
+            full_run_text = "".join(run.text for run in block.runs)
+            for match in placeholder_regex.finditer(full_run_text):
                 placeholders.add(match.group(1).strip())
 
+        # Process paragraphs
+        for para in doc.paragraphs:
+            extract_from_block(para)
+
+        # Process tables
         for table in doc.tables:
             for row in table.rows:
                 for cell in row.cells:
-                    for para in cell.paragraphs:
-                        for match in placeholder_regex.finditer(para.text):
-                            placeholders.add(match.group(1).strip())
-        
+                    extract_from_block(cell) # Cells also have .runs
+                    # Also check cell's paragraphs for good measure
+                    for para_in_cell in cell.paragraphs:
+                         extract_from_block(para_in_cell)
+
         if not placeholders:
-             return json.dumps({"error": f"No placeholders like '{{field}}' found in the template '{template_name}'."})
+            # If the above fails, fall back to a simpler full-text search
+            full_text = "\n".join([p.text for p in doc.paragraphs])
+            for table in doc.tables:
+                for row in table.rows:
+                    for cell in row.cells:
+                        full_text += "\n" + cell.text
+            
+            found = set(re.findall(r"{{(.*?)}}", full_text))
+            if not found:
+                return json.dumps({"error": f"No placeholders like '{{field}}' found in the template '{template_name}'."})
+            return json.dumps([p.strip() for p in found])
 
         return json.dumps(list(placeholders))
     except Exception as e:
-        return json.dumps({"error": f"Failed to read template and extract placeholders. {e}"})
+        return json.dumps({"error": f"Failed to read template. {e}"})
 
-def fill_template_and_save_document(template_name: str, project_id: str, document_name: str, context: dict) -> str:
-    """
-    Fills a .docx template with the provided context and saves it as a new document.
-    This is the final step in the document generation workflow.
-
-    Args:
-        template_name (str): The name of the template file (e.g., "FORMATO DE DEMANDA CIVIL EN GENERAL.docx").
-        project_id (str): The ID of the project this document belongs to.
-        document_name (str): The desired name for the new document (without extension).
-        context (dict): A dictionary where keys are the placeholder names and values are the text to insert.
-
-    Returns:
-        str: A JSON string with the path to the newly created document or an error message.
-    """
-    # Guard to prevent premature execution
-    if not document_name or not project_id or not context:
-        return json.dumps({"error": "This tool was called too early. You must collect all information from the user (placeholders, document_name, project_id) BEFORE calling this tool."})
-
+def fill_template_and_save_document(template_name: str, document_name: str, context: dict) -> str:
+    """Fills and saves a .docx template with the provided context. Returns the path of the new file."""
+    if not document_name or not context:
+        return json.dumps({"error": "Called with missing document_name or context."})
     try:
         template_path = os.path.join(TEMPLATE_DIR, template_name)
         if not os.path.exists(template_path):
@@ -92,12 +89,21 @@ def fill_template_and_save_document(template_name: str, project_id: str, documen
 
         doc = docx.Document(template_path)
 
+        # Helper to replace text in a block (paragraph or cell) while preserving some formatting
+        def replace_text_in_block(block, key, value):
+            search_text = f"{{{{{key}}}}}"
+            if search_text in block.text:
+                # Build up the new text
+                new_text = block.text.replace(search_text, str(value))
+                # Clear existing runs and add new run with replaced text
+                for run in block.runs:
+                    run.clear()
+                block.add_run(new_text)
+
         # Replace placeholders in paragraphs
         for para in doc.paragraphs:
             for key, value in context.items():
-                search_text = f"{{{{{key}}}}}"
-                if search_text in para.text:
-                    para.text = para.text.replace(search_text, str(value))
+                replace_text_in_block(para, key, value)
 
         # Replace placeholders in tables
         for table in doc.tables:
@@ -105,122 +111,26 @@ def fill_template_and_save_document(template_name: str, project_id: str, documen
                 for cell in row.cells:
                     for para in cell.paragraphs:
                         for key, value in context.items():
-                            search_text = f"{{{{{key}}}}}"
-                            if search_text in para.text:
-                                para.text = para.text.replace(search_text, str(value))
-
+                            replace_text_in_block(para, key, value)
+        
         # Save the new document
         new_file_name = f"{document_name.replace(' ', '_')}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.docx"
         new_file_path = os.path.join(GENERATED_DOCS_PATH, new_file_name)
+        os.makedirs(GENERATED_DOCS_PATH, exist_ok=True) # Ensure directory exists
         doc.save(new_file_path)
-
-        # Register the new document in the database via API call
-        register_payload = {
-            "file_name": document_name,
-            "project_id": project_id,
-            "file_path": new_file_path
-        }
-        response = requests.post(f"{API_BASE_URL}/documents/register", headers=_get_headers(), json=register_payload)
-        response.raise_for_status()
         
-        return json.dumps({"success": True, "file_path": new_file_path, "details": response.json()})
-
+        return json.dumps({"success": True, "file_path": new_file_path})
     except Exception as e:
         return json.dumps({"error": f"Failed to fill and save document. {e}"})
 
+
+
 def list_projects() -> str:
-    """
-    Lists all the projects the user is a member of.
-    Use this tool when the user asks to see their projects.
-    
-    Returns:
-        str: A JSON string representing the list of projects, including their names and IDs.
-    """
+    """Lists all projects the user is a member of."""
     try:
-        response = requests.get(f"{API_BASE_URL}/projects/", headers=_get_headers())
+        headers = _get_headers()
+        response = requests.get(f"{API_BASE_URL}/projects/", headers=headers)
         response.raise_for_status()
-        projects = response.json()
-        return json.dumps(projects)
+        return json.dumps(response.json())
     except Exception as e:
         return json.dumps({"error": f"Failed to list projects. {e}"})
-
-def create_project(name: str, description: str = None) -> str:
-    """
-    Creates a new project with a given name and an optional description.
-    Use this tool when the user explicitly asks to create a new project.
-    
-    Args:
-        name (str): The name of the new project. This is a required parameter.
-        description (str, optional): An optional description for the project.
-        
-    Returns:
-        str: A JSON string representing the newly created project.
-    """
-    try:
-        payload = {"name": name, "description": description}
-        response = requests.post(f"{API_BASE_URL}/projects/", headers=_get_headers(), json=payload)
-        response.raise_for_status()
-        project_data = response.json()
-        return json.dumps(project_data)
-    except Exception as e:
-        return json.dumps({"error": f"Failed to create project. {e}"})
-
-def create_task(project_id: str, title: str, description: str = None) -> str:
-    """
-    Creates a new task in a specific project using its ID.
-    To use this tool, you must know the ID of the project. You can get the project ID by using the 'list_projects' tool first.
-    
-    Args:
-        project_id (str): The ID of the project where the task will be created.
-        title (str): The title of the new task.
-        description (str, optional): An optional description for the task.
-        
-    Returns:
-        str: A JSON string representing the newly created task.
-    """
-    try:
-        payload = {"title": title, "description": description}
-        task_response = requests.post(f"{API_BASE_URL}/tasks/projects/{project_id}", headers=_get_headers(), json=payload)
-        task_response.raise_for_status()
-        task_data = task_response.json()
-        return json.dumps(task_data)
-    except Exception as e:
-        return json.dumps({"error": f"Failed to create task. {e}"})
-
-
-def list_tasks(project_id: str) -> str:
-    """
-    Lists all tasks for a specific project using its ID.
-    To use this tool, you must know the ID of the project. You can get the project ID by using the 'list_projects' tool first.
-    
-    Args:
-        project_id (str): The ID of the project to list tasks from.
-        
-    Returns:
-        str: A JSON string representing the list of tasks.
-    """
-    try:
-        task_response = requests.get(f"{API_BASE_URL}/tasks/projects/{project_id}", headers=_get_headers())
-        task_response.raise_for_status()
-        tasks_data = task_response.json()
-        return json.dumps(tasks_data)
-    except Exception as e:
-        return json.dumps({"error": f"Failed to list tasks. {e}"})
-
-
-def list_documents() -> str:
-    """
-
-    Lists all generated documents the user has access to.
-    Use this tool when the user asks to see their documents.
-    
-    Returns:
-        str: A JSON string representing the list of documents.
-    """
-    try:
-        response = requests.get(f"{API_BASE_URL}/documents/", headers=_get_headers())
-        response.raise_for_status()
-        documents = response.json()
-        return json.dumps(documents)
-    except Exception as e:
-        return json.dumps({"error": f"Failed to list documents. {e}"})

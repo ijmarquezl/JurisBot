@@ -15,6 +15,9 @@ function MainLayout({ onLogout }) {
           <Button color="inherit" component={RouterLink} to="/dashboard">
             Proyectos
           </Button>
+          <Button color="inherit" component={RouterLink} to="/project-lead">
+            Líder Proyectos
+          </Button>
           <Button color="inherit" component={RouterLink} to="/admin">
             Admin
           </Button>

@@ -98,7 +98,7 @@ def list_projects(
 @router.post("/{project_id}/members", response_model=ProjectInDB)
 def add_project_member(
     project_id: PyObjectId,
-    member_email: str,
+    member_email: str = Body(..., embed=True),
     db: Database = Depends(get_db),
     lead_user: UserInDB = Depends(get_project_lead_user),
 ):
@@ -122,7 +122,7 @@ def add_project_member(
 @router.delete("/{project_id}/members", response_model=ProjectInDB)
 def remove_project_member(
     project_id: PyObjectId,
-    member_email: str,
+    member_email: str = Body(..., embed=True),
     db: Database = Depends(get_db),
     lead_user: UserInDB = Depends(get_project_lead_user),
 ):

@@ -16,9 +16,15 @@ bcrypt==4.0.1
 python-multipart
 pydantic==2.8.2
 pydantic-core==2.20.1
+
+# Testing Dependencies
+pytest
+pytest-mock
+
 # LangGraph Dependencies
 langchain
 langgraph
 langchain-openai
 langchain-community
 langchain-ollama
+langgraph-checkpoint-mongodb

@@ -14,8 +14,21 @@
 - Construir un dashboard de usuario para manejo de proyectos, tareas y documentos.
 - Construir un tablero de control para un usuario administrador del sistema, que pueda dar de alta, baja y cambiar usuarios.
 - Construir un tablero de control para lider de proyecto que pueda agregar o retirar miembros de equipo, asi como asignar y reasignar proyectos y tareas a los miembros del equipo.
+- Implementar en la pestaña de documentos la capacidad de referenciar enlaces a documentos creados por el sistema, como demandas, amparos y solicitudes dependiendo de una plantilla que se puede utilizar para generarlos.
+- Implementar en la pestaña de documentos la funcionalidad de poner sólo enlaces a los documentos refernciados como ligas html que apunten al sistema de archivos local (con rutas relativas para poderlas migrar posteriormente), y que el usuario pueda abrirlos dando click (fuera del sistema).
 
 ** V 0.0.4 **
-- Identificar el proceso para construir un contenedor que pueda ser accedido de forma remota sin fallos (no localhost).
-- Probar en un servidor docker.
-- Publicar el servidor docker a Internet para pruebas remotas de especialistas.
+- Construir un backoffice para que un usuario superadminstrador pueda tener acceso a todos los elementos del sistema sin importar la compañía o equipo, y que tenga permisos para realizar todas las acciones.
+- Dotar al sistema de la funcionalidad de calendarizar y dar seguimiento a tareas para que la gestión de proyecto sea más completa.
+
+** V 0.0.5 **
+- Re-arquitectura a un modelo Multi-Tenant para dar servicio a múltiples compañías con aislamiento de datos estricto.
+- Se adopta un patrón "Database-per-Tenant", donde cada compañía tiene su propio conjunto de bases de datos privadas.
+- La nueva arquitectura de servicios en Docker es:
+  - `frontend`: Servicio compartido de React.
+  - `backend`: API compartida de FastAPI, diseñada para ser escalable.
+  - `postgres-public`: Base de datos compartida para vectores de documentos públicos.
+  - `*-tenant-<nombre>`: Conjunto de bases de datos (PostgreSQL y MongoDB) provisionadas por cada compañía.
+- Se implementa un script de CI/CD local (`deploy_test.sh`) para automatizar pruebas y despliegues al entorno de desarrollo.
+- Se externalizan todos los secretos y configuraciones a un archivo `.env`.
+- Se introduce un framework de pruebas (`pytest`) en el backend.

@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
+import {
     Typography, Box, Grid, Paper, List, ListItem, ListItemButton, ListItemText, 
-    CircularProgress, Divider, Button, Chip, Stack, TextField, Dialog, 
+    CircularProgress, Divider, Button, Stack, TextField, Dialog, 
     DialogActions, DialogContent, DialogTitle, IconButton, Select, MenuItem, FormControl, InputLabel, 
     Tabs, Tab, Card, CardContent, Switch, FormControlLabel
 } from '@mui/material';
-import { Add as AddIcon, Send as SendIcon, Delete as DeleteIcon, Archive as ArchiveIcon, Unarchive as UnarchiveIcon } from '@mui/icons-material';
+import { Add as AddIcon, Send as SendIcon, Delete as DeleteIcon, Archive as ArchiveIcon, Unarchive as UnarchiveIcon, FolderOpen as FolderOpenIcon } from '@mui/icons-material';
 import apiClient from '../api';
 import logger from '../logger';
 
-// Dialog components are omitted for brevity as they have no changes
+// --- DIALOG COMPONENTS ---
 function CreateProjectDialog({ open, onClose, onCreated }) {
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
@@ -60,12 +60,9 @@ function CreateTaskDialog({ open, onClose, onCreated, projectId }) {
         </Dialog>
     );
 }
-
-// Delete Project Confirmation Dialog
 function DeleteProjectConfirmDialog({ open, onClose, onConfirmed, project }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-
     const handleDelete = async () => {
         setLoading(true);
         setError('');
@@ -80,7 +77,6 @@ function DeleteProjectConfirmDialog({ open, onClose, onConfirmed, project }) {
             setLoading(false);
         }
     };
-
     return (
         <Dialog open={open} onClose={onClose}>
             <DialogTitle>Confirmar Eliminación de Proyecto</DialogTitle>
@@ -98,14 +94,11 @@ function DeleteProjectConfirmDialog({ open, onClose, onConfirmed, project }) {
         </Dialog>
     );
 }
-
-
 function CreateDocumentDialog({ open, onClose, onCreated, projects }) {
     const [fileName, setFileName] = useState('');
     const [projectId, setProjectId] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-
     const handleCreate = async () => {
         if (!fileName.trim() || !projectId) {
             setError("El nombre del archivo y el proyecto son obligatorios.");
@@ -122,7 +115,6 @@ function CreateDocumentDialog({ open, onClose, onCreated, projects }) {
             setError(err.response?.data?.detail || 'Error al crear el documento.');
         } finally { setLoading(false); }
     };
-
     return (
         <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
             <DialogTitle>Crear Nuevo Documento</DialogTitle>
@@ -160,135 +152,162 @@ function CreateDocumentDialog({ open, onClose, onCreated, projects }) {
     );
 }
 
-// Main Dashboard Component
+// --- MAIN DASHBOARD COMPONENT ---
 function Dashboard() {
   const [tab, setTab] = useState(0);
-  // Data states
   const [currentUser, setCurrentUser] = useState(null);
   const [projects, setProjects] = useState([]);
   const [tasks, setTasks] = useState([]);
-  const [documents, setDocuments] = useState([]);
+  const [generatedDocuments, setGeneratedDocuments] = useState([]);
   const [selectedProject, setSelectedProject] = useState(null);
-  // Chat states
   const [chatHistory, setChatHistory] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [isAgentTyping, setIsAgentTyping] = useState(false);
-  // General states
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  // Dialog states
   const [openCreateProject, setOpenCreateProject] = useState(false);
   const [openCreateTask, setOpenCreateTask] = useState(false);
   const [openDeleteProject, setOpenDeleteProject] = useState(false);
   const [openCreateDocument, setOpenCreateDocument] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState(null);
-  // Project filter state
   const [includeArchivedProjects, setIncludeArchivedProjects] = useState(false);
 
-  // --- DATA FETCHING --- 
-  const fetchCurrentUser = useCallback(async () => {
-    try {
-      const response = await apiClient.get('/users/me');
-      setCurrentUser(response.data);
-      logger.log("Current user loaded:", response.data); // ADDED LOG
-    } catch (err) {
-      logger.error("Error fetching current user:", err);
-      setError('Error al cargar la información del usuario.');
+  // --- State for Form-Based Generation ---
+  const [templates, setTemplates] = useState([]);
+  const [selectedTemplate, setSelectedTemplate] = useState('');
+  const [placeholders, setPlaceholders] = useState([]);
+  const [formData, setFormData] = useState({});
+  const [documentName, setDocumentName] = useState('');
+  const [selectedProjectId, setSelectedProjectId] = useState('');
+  const [showArchivedDocuments, setShowArchivedDocuments] = useState(false);
+
+  // --- Data Fetching ---
+  const fetchCurrentUser = useCallback(async () => { try { const res = await apiClient.get('/users/me'); setCurrentUser(res.data); } catch (err) { setError('Error al cargar usuario.'); } }, []);
+  const fetchProjects = useCallback(async () => { setLoading(true); try { const res = await apiClient.get('/projects/', { params: { include_archived: includeArchivedProjects } }); setProjects(res.data); } catch (err) { setError('Error al cargar proyectos.'); } finally { setLoading(false); } }, [includeArchivedProjects]);
+  const fetchGeneratedDocuments = useCallback(async () => { 
+    setLoading(true); 
+    try { 
+      const res = await apiClient.get('/documents/', { params: { include_archived: showArchivedDocuments } }); 
+      setGeneratedDocuments(res.data); 
+    } catch (err) { 
+      setError('Error al cargar documentos generados.'); 
+    } finally { 
+      setLoading(false); 
+    } 
+  }, [showArchivedDocuments]);
+  const fetchTemplates = useCallback(async () => { try { const res = await apiClient.get('/documents/templates'); setTemplates(res.data); } catch (err) { setError('Error al cargar plantillas.'); } }, []);
+
+  useEffect(() => { fetchCurrentUser(); fetchTemplates(); }, [fetchCurrentUser, fetchTemplates]);
+  useEffect(() => { if (tab === 0 || tab === 1) fetchProjects(); if (tab === 1) fetchGeneratedDocuments(); }, [tab, fetchProjects, fetchGeneratedDocuments]);
+
+  // --- Event Handlers ---
+  const handleTabChange = (event, newValue) => { setTab(newValue); };
+  
+  const handleTemplateChange = async (templateName) => {
+    if (!templateName) {
+        setSelectedTemplate('');
+        setPlaceholders([]);
+        setFormData({});
+        return;
     }
-  }, []);
-
-  const fetchProjects = useCallback(async () => {
+    setSelectedTemplate(templateName);
     setLoading(true);
     try {
-      const response = await apiClient.get('/projects/', { params: { include_archived: includeArchivedProjects } });
-      setProjects(response.data);
-    } catch (err) { setError('Error al cargar los proyectos.'); } 
-    finally { setLoading(false); }
-  }, [includeArchivedProjects]);
-
-  const fetchTasks = useCallback(async (projectId) => {
-    if (!projectId) return;
-    setLoading(true);
-    setTasks([]);
-    try {
-      const response = await apiClient.get(`/tasks/project/${projectId}`);
-      setTasks(response.data);
-    } catch (err) { setError('Error al cargar las tareas.'); } 
-    finally { setLoading(false); }
-  }, []);
-
-  const fetchDocuments = useCallback(async () => {
-    setLoading(true);
-    try {
-      const response = await apiClient.get('/documents/');
-      setDocuments(response.data);
-    } catch (err) { setError('Error al cargar los documentos.'); } 
-    finally { setLoading(false); }
-  }, []);
-
-  useEffect(() => {
-    fetchCurrentUser();
-  }, [fetchCurrentUser]);
-
-  useEffect(() => {
-    // Fetch projects for both tabs 0 and 1, as tab 1 needs project names
-    if (tab === 0 || tab === 1) fetchProjects();
-    if (tab === 1) fetchDocuments();
-  }, [tab, fetchProjects, fetchDocuments]);
-
-  // --- EVENT HANDLERS ---
-  const handleProjectSelect = (project) => {
-    setSelectedProject(project);
-    fetchTasks(project._id);
-  };
-
-  const handleStatusChange = async (taskId, newStatus) => {
-    const originalTasks = tasks;
-    const updatedTasks = tasks.map(t => t._id === taskId ? { ...t, status: newStatus } : t);
-    setTasks(updatedTasks);
-    try {
-      await apiClient.put(`/tasks/${taskId}`, { status: newStatus });
+        const res = await apiClient.get(`/documents/templates/${templateName}/placeholders`);
+        setPlaceholders(res.data);
+        const initialFormData = res.data.reduce((acc, placeholder) => ({ ...acc, [placeholder]: '' }), {});
+        setFormData(initialFormData);
     } catch (err) {
-      setError('Error al actualizar la tarea.');
-      setTasks(originalTasks);
+        setError('Error al cargar los campos de la plantilla.');
+        setPlaceholders([]);
+        setFormData({});
+    } finally {
+        setLoading(false);
     }
   };
 
-  const handleTabChange = (event, newValue) => {
-    setTab(newValue);
-    setSelectedProject(null);
-    setTasks([]);
+  const handleFormChange = (placeholder, value) => {
+    setFormData(prev => ({ ...prev, [placeholder]: value }));
+  };
+
+  const handleGenerateDocument = async () => {
+    if (!selectedTemplate || !documentName || !selectedProjectId) {
+        setError("Por favor, selecciona una plantilla, asigna un nombre al documento y elige un proyecto.");
+        return;
+    }
+    setLoading(true);
+    setError('');
+    try {
+        await apiClient.post('/documents/generate_from_form', {
+            template_name: selectedTemplate,
+            project_id: selectedProjectId,
+            document_name: documentName,
+            context: formData
+        });
+        fetchGeneratedDocuments();
+        setDocumentName('');
+        setSelectedProjectId('');
+    } catch (err) {
+        logger.error("Error generating document:", err);
+        setError(err.response?.data?.detail || 'Error al generar el documento.');
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  const handleDeleteDocument = async (documentId) => {
+    if (!window.confirm('¿Estás seguro de que quieres eliminar este documento? Esta acción es irreversible.')) return;
+    setLoading(true);
+    try {
+        await apiClient.delete(`/documents/${documentId}`);
+        fetchGeneratedDocuments();
+    } catch (err) {
+        logger.error("Error deleting document:", err);
+        const errorMessage = err.response?.data?.detail ? 
+                             (typeof err.response.data.detail === 'string' ? err.response.data.detail : JSON.stringify(err.response.data.detail)) :
+                             'Error al eliminar el documento.';
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  const handleArchiveToggle = async (documentId, isArchived) => {
+    setLoading(true);
+    try {
+        await apiClient.put(`/documents/${documentId}/archive`, { is_archived: !isArchived });
+        fetchGeneratedDocuments();
+    } catch (err) {
+        logger.error("Error archiving document:", err);
+        setError(err.response?.data?.detail || 'Error al archivar/desarchivar el documento.');
+    } finally {
+        setLoading(false);
+    }
   };
 
   const handleSendMessage = async () => {
     if (!chatInput.trim()) return;
-
     const userMessage = { sender: 'user', text: chatInput };
     setChatHistory(prev => [...prev, userMessage]);
+    const currentChatInput = chatInput;
     setChatInput('');
     setIsAgentTyping(true);
-
     try {
-        const history = chatHistory.map(m => `${m.sender}: ${m.text}`);
-        const response = await apiClient.post('/ask', { question: chatInput, history });
-        const agentMessage = { sender: 'agent', text: response.data.answer };
+        const response = await apiClient.post('/ask', { question: currentChatInput });
+        const rawAnswer = response.data.answer;
+        const finalAnswerMarker = "Final Answer:";
+        let finalAnswer = rawAnswer;
+        const markerIndex = rawAnswer.lastIndexOf(finalAnswerMarker);
+        if (markerIndex !== -1) {
+            finalAnswer = rawAnswer.substring(markerIndex + finalAnswerMarker.length).trim();
+        }
+        const agentMessage = { sender: 'agent', text: finalAnswer };
         setChatHistory(prev => [...prev, agentMessage]);
     } catch (err) {
         logger.error("Error calling /ask endpoint:", err);
-        const errorMessage = { sender: 'agent', text: 'Lo siento, ocurrió un error al procesar tu solicitud.' };
+        const errorMessage = { sender: 'agent', text: err.response?.data?.answer || 'Lo siento, ocurrió un error al procesar tu solicitud.' };
         setChatHistory(prev => [...prev, errorMessage]);
     } finally {
         setIsAgentTyping(false);
-    }
-  };
-
-  const handleArchiveToggle = async (project) => {
-    try {
-      await apiClient.put(`/projects/${project._id}/archive`, { archive_status: !project.is_archived });
-      fetchProjects(); // Refresh the project list
-    } catch (err) {
-      logger.error("Error toggling archive status:", err);
-      setError('Error al cambiar el estado de archivado del proyecto.');
     }
   };
 
@@ -299,21 +318,20 @@ function Dashboard() {
       <CreateProjectDialog open={openCreateProject} onClose={() => setOpenCreateProject(false)} onCreated={fetchProjects} />
       <CreateTaskDialog open={openCreateTask} onClose={() => setOpenCreateTask(false)} onCreated={() => fetchTasks(selectedProject?._id)} projectId={selectedProject?._id} />
       <DeleteProjectConfirmDialog open={openDeleteProject} onClose={() => setOpenDeleteProject(false)} onConfirmed={fetchProjects} project={projectToDelete} />
-      <CreateDocumentDialog open={openCreateDocument} onClose={() => setOpenCreateDocument(false)} onCreated={fetchDocuments} projects={projects} />
+      <CreateDocumentDialog open={openCreateDocument} onClose={() => setOpenCreateDocument(false)} onCreated={fetchGeneratedDocuments} projects={projects} />
 
       <Typography variant="h4" gutterBottom>Dashboard</Typography>
       
       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
         <Tabs value={tab} onChange={handleTabChange}>
           <Tab label="Proyectos y Tareas" />
-          <Tab label="Documentos" />
-          <Tab label="Chat con Agente" />
+          <Tab label="Generador de Documentos" />
+          <Tab label="Chat de Consulta" />
         </Tabs>
       </Box>
 
       {error && <Typography color="error" sx={{ mb: 2 }}>{error}</Typography>}
 
-      {/* Tab Panel for Projects & Tasks */}
       {tab === 0 && (
         <Grid container spacing={3}>
           <Grid item xs={12} md={4}>
@@ -321,47 +339,22 @@ function Dashboard() {
               <Typography variant="h6">Proyectos</Typography>
               {canManageProjects && <Button startIcon={<AddIcon />} onClick={() => setOpenCreateProject(true)}>Crear</Button>}
             </Stack>
-            <FormControlLabel
-                control={<Switch checked={includeArchivedProjects} onChange={(e) => setIncludeArchivedProjects(e.target.checked)} />}
-                label="Mostrar archivados"
-                sx={{ mb: 1 }}
-            />
+            <FormControlLabel control={<Switch checked={includeArchivedProjects} onChange={(e) => setIncludeArchivedProjects(e.target.checked)} />} label="Mostrar archivados" sx={{ mb: 1 }} />
             <Paper elevation={2} sx={{ maxHeight: '60vh', overflow: 'auto' }}>
               {loading ? <Box sx={{ p: 2, textAlign: 'center' }}><CircularProgress /></Box> : (
                 <List>{projects.map((p) => (
-                  <ListItemButton 
-                    key={p._id} 
-                    selected={selectedProject?._id === p._id}
-                    onClick={() => handleProjectSelect(p)}
-                    sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-                  >
+                  <ListItemButton key={p._id} selected={selectedProject?._id === p._id} onClick={() => handleProjectSelect(p)} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <ListItemText primary={p.name} secondary={p.is_archived ? 'Archivado' : ''} />
                     {canManageProjects && (
                         <Stack direction="row" spacing={0.5} onClick={(e) => e.stopPropagation()}>
-                            <IconButton 
-                                edge="end" 
-                                aria-label="archive" 
-                                onClick={() => handleArchiveToggle(p)}
-                                size="small"
-                            >
-                                {p.is_archived ? <UnarchiveIcon /> : <ArchiveIcon />}
-                            </IconButton>
-                            <IconButton 
-                                edge="end" 
-                                aria-label="delete" 
-                                onClick={() => { setProjectToDelete(p); setOpenDeleteProject(true); }}
-                                size="small"
-                            >
-                                <DeleteIcon />
-                            </IconButton>
+                            <IconButton edge="end" aria-label="archive" onClick={() => handleArchiveToggle(p._id, p.is_archived)} size="small">{p.is_archived ? <UnarchiveIcon /> : <ArchiveIcon />}</IconButton>
+                            <IconButton edge="end" aria-label="delete" onClick={() => { setProjectToDelete(p); setOpenDeleteProject(true); }} size="small"><DeleteIcon /></IconButton>
                         </Stack>
                     )}
                   </ListItemButton>
-                ))}
-              </List>
-            )}
-          </Paper>
-        </Grid>
+                ))}</List>
+            )}</Paper>
+          </Grid>
           <Grid item xs={12} md={8}>
             <Stack direction="row" justifyContent="space-between" alignItems="center">
               <Typography variant="h6">{selectedProject ? `Tareas de "${selectedProject.name}"` : 'Selecciona un proyecto'}</Typography>
@@ -376,63 +369,125 @@ function Dashboard() {
         </Grid>
       )}
 
-      {/* Tab Panel for Generated Documents */}
+      {/* Document Generator Tab */}
       {tab === 1 && (
-        <Box>
-          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-            <Typography variant="h6">Documentos Generados</Typography>
-            <Button startIcon={<AddIcon />} onClick={() => setOpenCreateDocument(true)}>
-              Crear Documento
-            </Button>
-          </Stack>
-          {loading ? <Box sx={{ p: 2, textAlign: 'center' }}><CircularProgress /></Box> : (
-            <Grid container spacing={2}>
-              {documents.map((doc) => {
-                const project = projects.find(p => p._id === doc.project_id);
-                return (
-                  <Grid item xs={12} sm={6} md={4} key={doc.id}>
-                    <Card variant="outlined">
-                      <CardContent>
-                        <Typography variant="h6" component="div" noWrap>
-                          {doc.file_name}
-                        </Typography>
-                        <Typography sx={{ mb: 1.5 }} color="text.secondary">
-                          {project ? `Proyecto: ${project.name}` : 'Proyecto no encontrado'}
-                        </Typography>
-                        <Typography variant="body2">
-                          Propietario: {doc.owner_email}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          Ruta: {doc.file_path}
-                        </Typography>
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                );
-              })}
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={5}>
+            <Typography variant="h6" gutterBottom>Configuración de Documento</Typography>
+            <Paper elevation={2} sx={{ p: 2 }}>
+              <Stack spacing={3}>
+                <FormControl fullWidth>
+                  <InputLabel>Plantilla</InputLabel>
+                  <Select value={selectedTemplate} label="Plantilla" onChange={(e) => handleTemplateChange(e.target.value)}>
+                    <MenuItem value=""><em>Selecciona una plantilla</em></MenuItem>
+                    {templates.map(t => <MenuItem key={t} value={t}>{t}</MenuItem>)}
+                  </Select>
+                </FormControl>
+
+                {placeholders.length > 0 && (
+                    <>
+                        <TextField label="Nombre del Nuevo Documento" value={documentName} onChange={(e) => setDocumentName(e.target.value)} fullWidth />
+                        <FormControl fullWidth>
+                            <InputLabel>Asignar a Proyecto</InputLabel>
+                            <Select value={selectedProjectId} label="Asignar a Proyecto" onChange={(e) => setSelectedProjectId(e.target.value)}>
+                                {projects.map(p => <MenuItem key={p._id} value={p._id}>{p.name}</MenuItem>)}
+                            </Select>
+                        </FormControl>
+                    </>
+                )}
+              </Stack>
+            </Paper>
+            
+            {placeholders.length > 0 && (
+                <Button variant="contained" color="primary" onClick={handleGenerateDocument} sx={{ mt: 3 }} disabled={loading}>
+                    {loading ? <CircularProgress size={24} /> : "Generar Documento"}
+                </Button>
+            )}
+          </Grid>
+
+          <Grid item xs={12} md={7}>
+            <Typography variant="h6" gutterBottom>Campos de la Plantilla</Typography>
+            <Paper elevation={2} sx={{ p: 2, maxHeight: '65vh', overflow: 'auto' }}>
+              {loading && <CircularProgress />}
+              {placeholders.length > 0 ? (
+                <Stack spacing={2}>
+                  {placeholders.map(p => (
+                    <TextField
+                      key={p}
+                      label={p.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} // Prettify placeholder name for label
+                      value={formData[p] || ''}
+                      onChange={(e) => handleFormChange(p, e.target.value)}
+                      fullWidth
+                      multiline
+                      rows={p.toLowerCase().includes('hechos') ? 4 : 1} // Give more space for 'hechos'
+                    />
+                  ))}
+                </Stack>
+              ) : (
+                <Typography color="text.secondary">Selecciona una plantilla para ver sus campos.</Typography>
+              )}
+            </Paper>
+          </Grid>
+
+           <Grid item xs={12}>
+                <Typography variant="h6" gutterBottom sx={{mt: 2}}>Documentos Generados</Typography>
+                <FormControlLabel control={<Switch checked={showArchivedDocuments} onChange={(e) => setShowArchivedDocuments(e.target.checked)} />} label="Mostrar archivados" sx={{ mb: 1 }} />
+                <Paper elevation={2} sx={{ p: 2, maxHeight: '40vh', overflow: 'auto' }}>
+                    {loading ? <Box sx={{ p: 2, textAlign: 'center' }}><CircularProgress /></Box> : generatedDocuments.length > 0 ? (
+                        <List>{generatedDocuments.map(doc => {
+                            console.log("Document object in map:", doc); // DEBUG LOG
+                            return (
+                            <ListItem 
+                                key={doc._id} 
+                                secondaryAction={
+                                    <Stack direction="row" spacing={0.5}>
+                                        <IconButton edge="end" aria-label="open" onClick={async () => {
+                                            try {
+                                                const response = await apiClient.get(`/documents/${doc._id}/download`, { responseType: 'blob' });
+                                                const url = window.URL.createObjectURL(new Blob([response.data]));
+                                                const link = document.createElement('a');
+                                                link.href = url;
+                                                link.setAttribute('download', `${doc.file_name}.docx`); // Use the document's file_name with .docx extension
+                                                document.body.appendChild(link);
+                                                link.click();
+                                                link.remove();
+                                                window.URL.revokeObjectURL(url);
+                                            } catch (err) {
+                                                logger.error("Error downloading document:", err);
+                                                setError(err.response?.data?.detail || 'Error al descargar el documento.');
+                                            }
+                                        }}>
+                                            <FolderOpenIcon />
+                                        </IconButton>
+                                        <IconButton edge="end" aria-label="archive" onClick={() => handleArchiveToggle(doc._id, doc.is_archived)}>
+                                            {doc.is_archived ? <UnarchiveIcon /> : <ArchiveIcon />}
+                                        </IconButton>
+                                        <IconButton edge="end" aria-label="delete" onClick={() => handleDeleteDocument(doc._id)}>
+                                            <DeleteIcon />
+                                        </IconButton>
+                                    </Stack>
+                                }
+                            >
+                                <ListItemText 
+                                    primary={doc.file_name} 
+                                    secondary={`Proyecto: ${projects.find(p => p._id === doc.project_id)?.name || 'N/A'} | Propietario: ${doc.owner_email} | Ruta: ${doc.file_path}`}
+                                />
+                            </ListItem>
+                        )})}</List>
+                    ) : (
+                        <Typography color="text.secondary">Aún no se han generado documentos.</Typography>
+                    )}
+                </Paper>
             </Grid>
-          )}
-          {!loading && documents.length === 0 && (
-            <Typography sx={{ p: 2, textAlign: 'center', color: 'text.secondary' }}>
-              No se han generado documentos.
-            </Typography>
-          )}
-        </Box>
+        </Grid>
       )}
 
-      {/* Tab Panel for Chat */}
+      {/* Chat Tab (Simplified) */}
       {tab === 2 && (
-        <Paper elevation={2} sx={{ height: '70vh', display: 'flex', flexDirection: 'column' }}>
+        <Paper elevation={2} sx={{ height: '70vh' }}>
             <Box sx={{ flexGrow: 1, overflow: 'auto', p: 2 }}>
                 {chatHistory.map((msg, index) => (
-                    <Box
-                        key={index}
-                        sx={{
-                            mb: 2,
-                            display: 'flex',
-                            justifyContent: msg.sender === 'user' ? 'flex-end' : 'flex-start',
-                        }}
-                    >
+                    <Box key={index} sx={{ mb: 2, display: 'flex', justifyContent: msg.sender === 'user' ? 'flex-end' : 'flex-start' }}>
                         <Paper
                             elevation={1}
                             sx={{
@@ -440,7 +495,7 @@ function Dashboard() {
                                 borderRadius: msg.sender === 'user' ? '20px 20px 5px 20px' : '20px 20px 20px 5px',
                                 backgroundColor: msg.sender === 'user' ? 'primary.main' : 'grey.300',
                                 color: msg.sender === 'user' ? 'primary.contrastText' : 'text.primary',
-                                maxWidth: '90%',
+                                maxWidth: '100%', // Apply max width to the bubble itself
                                 wordWrap: 'break-word',
                             }}
                         >
@@ -451,21 +506,12 @@ function Dashboard() {
                 {isAgentTyping && <CircularProgress size={24} sx={{ ml: 1 }} />}
             </Box>
             <Divider />
-            <Stack direction="row" spacing={1} sx={{ p: 2 }}>
-                <TextField 
-                    fullWidth 
-                    placeholder="Escribe tu mensaje..." 
-                    value={chatInput} 
-                    onChange={(e) => setChatInput(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                />
-                <Button variant="contained" onClick={handleSendMessage} endIcon={<SendIcon />} disabled={isAgentTyping}>
-                    Enviar
-                </Button>
+            <Stack direction="row" spacing={1} sx={{ p: 2, alignItems: 'center' }}>
+                <TextField fullWidth placeholder="Escribe tu mensaje..." value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()} />
+                <Button variant="contained" onClick={handleSendMessage} endIcon={<SendIcon />} disabled={isAgentTyping}>Enviar</Button>
             </Stack>
         </Paper>
       )}
-
     </Box>
   );
 }

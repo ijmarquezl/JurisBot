@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from typing import Optional, List
 
 from app.logging_config import LOGGING_CONFIG
+import httpx
 from app.graph_agent import graph # New LangGraph agent
 from langchain_core.messages import HumanMessage
 
@@ -19,6 +20,8 @@ from app.utils import get_mongo_client
 from app.routers import projects, tasks, admin, documents
 from app.dependencies import get_db, get_current_user, oauth2_scheme
 
+from app.db_manager import close_db_connection
+
 # Apply logging configuration
 dictConfig(LOGGING_CONFIG)
 logger = logging.getLogger(__name__)
@@ -26,7 +29,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="Jurisconsultor API",
     description="API for the Jurisconsultor AI agent.",
-    version="0.5.0", # Version bump for new architecture
+    version="0.6.0", # Version bump for new DB architecture
 )
 
 # --- CORS Middleware ---
@@ -46,11 +49,12 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def startup_event():
-    logger.info("Application startup.")
+    logger.info("Application startup. MongoDB client initialized.")
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    logger.info("Application shutdown.")
+    logger.info("Closing MongoDB connection.")
+    close_db_connection()
 
 # --- API Routers ---
 app.include_router(projects.router)
@@ -130,28 +134,33 @@ class AskRequest(BaseModel):
 
 @app.get("/")
 def read_root():
-    """
-    Root endpoint for health checks.
-    """
+    """Root endpoint for health checks."""
     return {"status": "ok"}
 
 @app.post("/ask")
 async def ask(
     request: AskRequest,
     current_user: UserInDB = Depends(get_current_user),
+    token: str = Depends(oauth2_scheme),
 ):
-    """
-    Endpoint to interact with the new LangGraph conversational agent.
-    """
+    """Endpoint to interact with the new LangGraph conversational agent."""
     logger.info(f"User {current_user.email} is asking: '{request.question}'")
     
     config = {"configurable": {"thread_id": current_user.email}}
-    inputs = {"messages": [HumanMessage(content=request.question)]}
+    # Pass the access token into the graph's state
+    inputs = {"messages": [HumanMessage(content=request.question)], "access_token": token}
     final_answer = "Lo siento, no pude procesar tu solicitud."
     
-    async for event in graph.astream(inputs, config=config):
-        if "manager" in event:
-            final_answer = event["manager"]["messages"][-1].content
+    try:
+        async for event in graph.astream(inputs, config=config):
+            if "manager" in event:
+                final_answer = event["manager"]["messages"][-1].content
 
-    logger.info(f"Agent provided answer to {current_user.email}.")
-    return {"answer": final_answer}
+        logger.info(f"Agent provided answer to {current_user.email}.")
+        return {"answer": final_answer}
+    except httpx.ConnectError as e:
+        logger.error(f"Connection to LLM failed: {e}")
+        return {"answer": "Lo siento, no puedo conectarme con el modelo de lenguaje en este momento. Por favor, asegúrate de que el servidor de Ollama esté funcionando y sea accesible."}
+    except Exception as e:
+        logger.error(f"An unexpected error occurred in the agent: {e}", exc_info=True)
+        return {"answer": "Lo siento, ocurrió un error inesperado al procesar tu solicitud."}

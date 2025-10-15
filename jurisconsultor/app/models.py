@@ -147,6 +147,7 @@ class GeneratedDocumentInDB(GeneratedDocumentBase):
     id: PyObjectId = Field(alias='_id')
     file_path: str
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    is_archived: bool = False
 
 # --- Agent Conversation State Models ---
 class ConversationState(BaseModel):

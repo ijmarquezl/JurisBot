@@ -1,25 +1,18 @@
+# Docker Compose for Multi-Tenant Architecture
+# This setup reflects a professional, scalable, and secure architecture.
 version: '3.8'
 
 services:
-  mongodb:
-    image: mongo:latest
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo-data:/data/db
-    networks:
-      - jurisconsultor-net
+  # --- SHARED SERVICES (for all tenants) ---
 
-  postgres:
-    image: postgres:13-alpine
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
     ports:
-      - "5432:5432"
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    environment:
-      POSTGRES_USER: juris_user
-      POSTGRES_PASSWORD: a_secure_password
-      POSTGRES_DB: jurisconsultor_db
+      - "5173:80" # Host:Container
+    depends_on:
+      - backend
     networks:
       - jurisconsultor-net
 
@@ -30,35 +23,68 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - mongodb
-      - postgres
+      - postgres_public
+      - postgres_tenant_a # Depends on tenant DBs for health/startup order
+      - mongodb_tenant_a
     environment:
-      MONGO_URI: mongodb://mongodb:27017/
-      POSTGRES_URI: postgresql://juris_user:a_secure_password@postgres:5432/jurisconsultor_db
-      LLM_URL: http://10.29.93.56:11434
-      EMBEDDING_MODEL_NAME: wilfredomartel/multilingual-e5-large-es-legal-v2
-      SECRET_KEY: a_super_secret_key_for_development_change_this
-      ALGORITHM: HS256
-      ACCESS_TOKEN_EXPIRE_MINUTES: 30
+      # --- Database URIs ---
+      # The backend app will need logic to select the correct tenant DB based on the user.
+      PUBLIC_DB_URI: postgresql://${PUBLIC_POSTGRES_USER}:${PUBLIC_POSTGRES_PASSWORD}@postgres_public:5432/${PUBLIC_POSTGRES_DB}
+      TENANT_A_POSTGRES_URI: postgresql://${TENANT_A_POSTGRES_USER}:${TENANT_A_POSTGRES_PASSWORD}@postgres_tenant_a:5432/${TENANT_A_POSTGRES_DB}
+      TENANT_A_MONGO_URI: mongodb://${TENANT_A_MONGO_USER}:${TENANT_A_MONGO_PASSWORD}@mongodb_tenant_a:27017/${TENANT_A_MONGO_DB}?authSource=admin
+
+      # --- App & Security Config ---
+      SECRET_KEY: ${SECRET_KEY}
+      ALGORITHM: ${ALGORITHM}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES}
+      
+      # --- External Services ---
+      LLM_URL: ${LLM_URL}
+      EMBEDDING_MODEL_NAME: ${EMBEDDING_MODEL_NAME}
     volumes:
-      - ./jurisconsultor/documentos_legales:/docs # Mount local documents into the container
+      - ./jurisconsultor/documentos_legales:/docs
     networks:
       - jurisconsultor-net
 
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    ports:
-      - "5173:80"
-    depends_on:
-      - backend
+  postgres_public:
+    image: postgres:13-alpine
+    environment:
+      POSTGRES_USER: ${PUBLIC_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${PUBLIC_POSTGRES_PASSWORD}
+      POSTGRES_DB: ${PUBLIC_POSTGRES_DB}
+    volumes:
+      - postgres_public_data:/var/lib/postgresql/data
+    networks:
+      - jurisconsultor-net
+
+  # --- EXAMPLE TENANT 'A' SERVICES ---
+  # In a real production environment, these would be provisioned for each company.
+
+  postgres_tenant_a:
+    image: postgres:13-alpine
+    environment:
+      POSTGRES_USER: ${TENANT_A_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${TENANT_A_POSTGRES_PASSWORD}
+      POSTGRES_DB: ${TENANT_A_POSTGRES_DB}
+    volumes:
+      - postgres_tenant_a_data:/var/lib/postgresql/data
+    networks:
+      - jurisconsultor-net
+
+  mongodb_tenant_a:
+    image: mongo:latest
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${TENANT_A_MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${TENANT_A_MONGO_PASSWORD}
+    volumes:
+      - mongodb_tenant_a_data:/data/db
     networks:
       - jurisconsultor-net
 
 volumes:
-  mongo-data:
-  postgres-data:
+  postgres_public_data:
+  postgres_tenant_a_data:
+  mongodb_tenant_a_data:
 
 networks:
   jurisconsultor-net:

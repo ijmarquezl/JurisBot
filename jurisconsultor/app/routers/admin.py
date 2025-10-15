@@ -4,8 +4,8 @@ from typing import List
 from pymongo.database import Database
 from bson import ObjectId
 
-from app.models import UserCreate, UserInDB, UserBase, UserUpdate, PyObjectId
-from app.dependencies import get_db, get_admin_user
+from app.models import UserCreate, UserInDB, UserBase, UserUpdate, PyObjectId, UserResponse
+from app.dependencies import get_db, get_admin_user, get_project_lead_user
 from app.users import create_user, get_user
 
 logger = logging.getLogger(__name__)
@@ -33,6 +33,16 @@ def list_users_in_company(admin_user: UserInDB = Depends(get_admin_user), db: Da
     logger.info(f"MongoDB query for users: {{'company_id': '{admin_user.company_id}'}}")
     logger.info(f"Users returned from list_users_in_company: {users_list}")
     return users_list
+
+@router.get("/users/company", response_model=List[UserResponse], dependencies=[Depends(get_project_lead_user)])
+def list_company_users(lead_user: UserInDB = Depends(get_project_lead_user), db: Database = Depends(get_db)):
+    """Lists all users in the project lead's company, accessible by project leads and admins."""
+    if not lead_user.company_id:
+        raise HTTPException(status_code=400, detail="User is not associated with a company.")
+    
+    users_cursor = db.users.find({"company_id": {"$in": [str(lead_user.company_id), lead_user.company_id]}})
+    # Return UserResponse to avoid exposing hashed_password
+    return [UserResponse(email=u.email, full_name=u.full_name, role=u.role) for u in [UserInDB(**user_data) for user_data in users_cursor]]
 
 @router.post("/users", response_model=UserBase, status_code=201)
 def create_new_user(new_user: UserCreate, admin_user: UserInDB = Depends(get_admin_user), db: Database = Depends(get_db)):
