@@ -1,0 +1,25 @@
+services:
+  postgres_mi_primera_empresa:
+    image: postgres:13-alpine
+    environment:
+      POSTGRES_USER: $TENANT_MI_PRIMERA_EMPRESA_POSTGRES_USER
+      POSTGRES_PASSWORD: $TENANT_MI_PRIMERA_EMPRESA_POSTGRES_PASSWORD
+      POSTGRES_DB: $TENANT_MI_PRIMERA_EMPRESA_POSTGRES_DB
+    volumes:
+      - postgres_mi_primera_empresa_data:/var/lib/postgresql/data
+    networks:
+      - jurisconsultor-net
+
+  mongodb_mi_primera_empresa:
+    image: mongo:latest
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: $TENANT_MI_PRIMERA_EMPRESA_MONGO_USER
+      MONGO_INITDB_ROOT_PASSWORD: $TENANT_MI_PRIMERA_EMPRESA_MONGO_PASSWORD
+    volumes:
+      - mongodb_mi_primera_empresa_data:/data/db
+    networks:
+      - jurisconsultor-net
+
+volumes:
+  postgres_mi_primera_empresa_data:
+  mongodb_mi_primera_empresa_data:

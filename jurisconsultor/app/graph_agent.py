@@ -2,8 +2,8 @@ import os
 from typing import Annotated, List, TypedDict
 from dotenv import load_dotenv
 
-# Explicitly load .env from the parent directory (jurisconsultor/)
-dotenv_path = os.path.join(os.path.dirname(__file__), '..', '.env')
+# Explicitly load .env from the project root directory
+dotenv_path = os.path.join(os.path.dirname(__file__), '..', '..', '.env')
 load_dotenv(dotenv_path=dotenv_path)
 
 from langchain_core.messages import SystemMessage, AIMessage, HumanMessage
@@ -13,11 +13,11 @@ from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import ToolNode
 from langgraph.checkpoint.mongodb import MongoDBSaver
 from langchain.agents import AgentExecutor, create_react_agent
-from langchain import hub
+from langchain_core.prompts import PromptTemplate
 
-from app import tools as legacy_tools
-from app import utils
-from app.db_manager import get_memory_db # Import the new db getter for memory
+import tools as legacy_tools
+import utils
+from db_manager import get_memory_db # Import the new db getter for memory
 
 # --- 1. Define the State ---
 
@@ -29,22 +29,22 @@ class AgentState(TypedDict):
 
 @tool
 def get_template_placeholders(template_name: str) -> str:
-    """Inspects a .docx template and returns a list of its placeholders. This should be the first step in document generation."""
+    """Inspecciona una plantilla .docx y devuelve una lista de sus placeholders. Este debe ser el primer paso en la generación de documentos."""
     return legacy_tools.get_template_placeholders(template_name)
 
 @tool
 def answer_legal_question_with_rag(question: str) -> str:
-    """Use this tool to answer any legal question by searching through the knowledge base of legal documents."""
+    """Usa esta herramienta para responder cualquier pregunta legal, buscando en la base de conocimiento de documentos jurídicos."""
     return utils.answer_with_rag(question)
 
 @tool
 def fill_template_and_save_document(template_name: str, project_id: str, document_name: str, context: dict) -> str:
-    """The final step. Fills and saves a .docx template with the provided information. Only use this after all information has been collected."""
+    """El paso final. Rellena y guarda una plantilla .docx con la información proporcionada. Úsese solo después de que toda la información haya sido recopilada."""
     return legacy_tools.fill_template_and_save_document(template_name, document_name, context)
 
 @tool
 def list_projects() -> str:
-    """Lists all available projects for the user."""
+    """Lista todos los proyectos disponibles para el usuario."""
     return legacy_tools.list_projects()
 
 # --- 3. Create the Manager Agent ---
@@ -58,23 +58,54 @@ agent_tools = [
 
 llm = ChatOllama(model="llama3", temperature=0, base_url=os.getenv("LLM_URL"))
 
-react_prompt = hub.pull("hwchase17/react-chat")
+# Custom ReAct Prompt Template in Spanish
+react_prompt_template = """Eres un asistente experto que debe seguir reglas estrictas. Responde a la siguiente pregunta de la mejor manera posible. Tienes acceso a las siguientes herramientas:
+
+{tools}
+
+Usa el siguiente formato para responder:
+
+Pregunta: la pregunta que debes responder
+Pensamiento: siempre debes pensar en qué hacer. Decide si usar una herramienta o no. Si la pregunta es de índole legal, DEBES usar la herramienta `answer_legal_question_with_rag`.
+Herramienta: la acción a tomar, debe ser una de [{tool_names}]
+Entrada de la Herramienta: la entrada para la herramienta
+Observación: el resultado de la herramienta
+... (este patrón de Pensamiento/Herramienta/Entrada/Observación puede repetirse N veces)
+Pensamiento: Ahora sé la respuesta final.
+Respuesta Final: la respuesta final a la pregunta original. DEBE ESTAR EN ESPAÑOL.
+
+**REGLAS CRÍTICAS:**
+1.  **IDIOMA:** Todo tu razonamiento (Pensamiento) y tu respuesta final DEBEN ser en ESPAÑOL.
+2.  **USO DE RAG:** Para cualquier pregunta que involucre conceptos legales, leyes, artículos o interpretaciones jurídicas, **DEBES** usar la herramienta `answer_legal_question_with_rag`.
+
+Comienza!
+
+Pregunta: {input}
+Historial de Chat:
+{chat_history}
+
+Pensamiento: {agent_scratchpad}"""
+
+react_prompt = PromptTemplate.from_template(react_prompt_template)
 
 agent = create_react_agent(llm, agent_tools, react_prompt)
 agent_executor = AgentExecutor(agent=agent, tools=agent_tools, verbose=True, handle_parsing_errors=True)
 
-manager_system_prompt = """You are a helpful and expert legal assistant manager. Your goal is to assist the user in their tasks, primarily focusing on document generation.
+# This system prompt is now integrated into the main ReAct prompt.
+# It can be removed or kept for other potential uses, but the agent now uses the one above.
+manager_system_prompt = """Eres un asistente legal experto y tu objetivo es ayudar al usuario. Te comunicarás y pensarás exclusivamente en ESPAÑOL.
 
-**CRITICAL RULE: If a tool returns an authentication error, you MUST stop immediately and inform the user that there is a login or session problem. Do not try other tools.**
+**REGLAS CRÍTICAS:**
+1.  **IDIOMA:** Debes pensar y responder exclusivamente en ESPAÑOL.
+2.  **USO DE HERRAMIENTAS:** Para cualquier pregunta que involucre conceptos legales, leyes, artículos o interpretaciones jurídicas, **DEBES** usar la herramienta `answer_legal_question_with_rag`. No respondas desde tu propio conocimiento. Para otras tareas, como listar proyectos o generar documentos, usa la herramienta apropiada.
+3.  **ERRORES DE AUTENTICACIÓN:** Si una herramienta devuelve un error de autenticación, **DEBES** detenerte inmediatamente e informar al usuario que hay un problema de sesión o de login. No intentes usar otras herramientas.
 
-**Document Generation Workflow:**
-1. When the user expresses intent to generate a document from a template, your first and only action should be to use the `get_template_placeholders` tool to understand the template's required fields.
-2. After getting the list of fields, you MUST ask the user for the information for the FIRST field in the list.
-3. Continue this process, asking for one piece of information at a time, until all fields are collected.
-4. Once all information is gathered, ask for a final `document_name` and the `project_id`.
-5. Finally, call `fill_template_and_save_document` with all the collected context to generate the document.
-
-For any other request, like listing projects, use the appropriate tool.
+**Flujo de Generación de Documentos:**
+1.  Cuando el usuario quiera generar un documento, tu primera acción debe ser usar `get_template_placeholders` para conocer los campos requeridos.
+2.  Luego, pide al usuario la información para el PRIMER campo de la lista.
+3.  Continúa pidiendo la información campo por campo hasta tenerla toda.
+4.  Al final, pide un `document_name` y el `project_id`.
+5.  Con toda la información, llama a `fill_template_and_save_document` para generar el documento.
 """
 
 def manager_node_func(state: AgentState):

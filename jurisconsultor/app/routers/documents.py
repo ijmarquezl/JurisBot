@@ -8,10 +8,10 @@ from datetime import datetime
 from pydantic import BaseModel
 from fastapi.responses import FileResponse
 
-from app.models import GeneratedDocumentInDB, UserInDB, PyObjectId
-from app.dependencies import get_db, get_current_user
-from app.utils import answer_with_rag, search_raw_documents, get_public_db_conn # New import
-from app import tools as legacy_tools
+from models import GeneratedDocumentInDB, UserInDB, PyObjectId
+from dependencies import get_db, get_current_user
+from utils import answer_with_rag, search_raw_documents, get_public_db_conn # New import
+import tools as legacy_tools
 
 logger = logging.getLogger(__name__)
 

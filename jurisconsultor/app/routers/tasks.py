@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pymongo.database import Database
 from typing import List
 
-from app.models import TaskCreate, TaskInDB, UserInDB, ProjectInDB, PyObjectId, TaskUpdate
-from app.dependencies import get_db, get_current_user
+from models import TaskCreate, TaskInDB, UserInDB, ProjectInDB, PyObjectId, TaskUpdate
+from dependencies import get_db, get_current_user
 
 router = APIRouter(
     prefix="/tasks",

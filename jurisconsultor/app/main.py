@@ -8,19 +8,19 @@ from jose import JWTError
 from pydantic import BaseModel
 from typing import Optional, List
 
-from app.logging_config import LOGGING_CONFIG
+from logging_config import LOGGING_CONFIG
 import httpx
-from app.graph_agent import graph # New LangGraph agent
+from graph_agent import graph # New LangGraph agent
 from langchain_core.messages import HumanMessage
 
-from app.models import UserCreate, UserInDB, Token, TokenData, UserBase, UserResponse
-from app.security import create_access_token, create_refresh_token, verify_password, verify_token
-from app.users import create_user, get_user
-from app.utils import get_mongo_client
-from app.routers import projects, tasks, admin, documents
-from app.dependencies import get_db, get_current_user, oauth2_scheme
+from models import UserCreate, UserInDB, Token, TokenData, UserBase, UserResponse
+from security import create_access_token, create_refresh_token, verify_password, verify_token
+from users import create_user, get_user
+from utils import get_mongo_client
+from routers import projects, tasks, admin, documents
+from dependencies import get_db, get_current_user, oauth2_scheme
 
-from app.db_manager import close_db_connection
+from db_manager import close_db_connection
 
 # Apply logging configuration
 dictConfig(LOGGING_CONFIG)

@@ -20,6 +20,8 @@
 ** V 0.0.4 **
 - Construir un backoffice para que un usuario superadminstrador pueda tener acceso a todos los elementos del sistema sin importar la compañía o equipo, y que tenga permisos para realizar todas las acciones.
 - Dotar al sistema de la funcionalidad de calendarizar y dar seguimiento a tareas para que la gestión de proyecto sea más completa.
+- Crear un mecanismo de rotación de logs para que no se queden sin espacio.
+- Crear un mecanismo para consulta remota de logs para automatizaciones.
 
 ** V 0.0.5 **
 - Re-arquitectura a un modelo Multi-Tenant para dar servicio a múltiples compañías con aislamiento de datos estricto.
@@ -32,3 +34,6 @@
 - Se implementa un script de CI/CD local (`deploy_test.sh`) para automatizar pruebas y despliegues al entorno de desarrollo.
 - Se externalizan todos los secretos y configuraciones a un archivo `.env`.
 - Se introduce un framework de pruebas (`pytest`) en el backend.
+
+** V 0.0.6 **
+- 

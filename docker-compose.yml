@@ -3,14 +3,24 @@
 version: '3.8'
 
 services:
+  # --- REVERSE PROXY (Public Entrypoint) ---
+  proxy:
+    build: ./proxy
+    ports:
+      - "80:80"
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - jurisconsultor-net
+
   # --- SHARED SERVICES (for all tenants) ---
 
   frontend:
     build:
-      context: ./frontend
+      context: ./jurisconsultor/frontend
       dockerfile: Dockerfile
-    ports:
-      - "5173:80" # Host:Container
+    # PORTS REMOVED - Accessed via reverse proxy
     depends_on:
       - backend
     networks:
@@ -20,8 +30,7 @@ services:
     build:
       context: ./jurisconsultor
       dockerfile: Dockerfile
-    ports:
-      - "8000:8000"
+    # PORTS REMOVED - Accessed via reverse proxy
     depends_on:
       - postgres_public
       - postgres_tenant_a # Depends on tenant DBs for health/startup order
@@ -29,9 +38,10 @@ services:
     environment:
       # --- Database URIs ---
       # The backend app will need logic to select the correct tenant DB based on the user.
-      PUBLIC_DB_URI: postgresql://${PUBLIC_POSTGRES_USER}:${PUBLIC_POSTGRES_PASSWORD}@postgres_public:5432/${PUBLIC_POSTGRES_DB}
+      PUBLIC_POSTGRES_URI: postgresql://${PUBLIC_POSTGRES_USER}:${PUBLIC_POSTGRES_PASSWORD}@postgres_public:5432/${PUBLIC_POSTGRES_DB}
       TENANT_A_POSTGRES_URI: postgresql://${TENANT_A_POSTGRES_USER}:${TENANT_A_POSTGRES_PASSWORD}@postgres_tenant_a:5432/${TENANT_A_POSTGRES_DB}
-      TENANT_A_MONGO_URI: mongodb://${TENANT_A_MONGO_USER}:${TENANT_A_MONGO_PASSWORD}@mongodb_tenant_a:27017/${TENANT_A_MONGO_DB}?authSource=admin
+      MONGO_URI: mongodb://${TENANT_MI_PRIMERA_EMPRESA_MONGO_USER}:${TENANT_MI_PRIMERA_EMPRESA_MONGO_PASSWORD}@mongodb_mi_primera_empresa:27017/${TENANT_MI_PRIMERA_EMPRESA_MONGO_DB}?authSource=admin
+      MONGO_DB_NAME: ${TENANT_MI_PRIMERA_EMPRESA_MONGO_DB}
 
       # --- App & Security Config ---
       SECRET_KEY: ${SECRET_KEY}
@@ -41,13 +51,14 @@ services:
       # --- External Services ---
       LLM_URL: ${LLM_URL}
       EMBEDDING_MODEL_NAME: ${EMBEDDING_MODEL_NAME}
+    command: ["/bin/bash", "-c", "sleep 15 && uvicorn main:app --host 0.0.0.0 --port 8000"]
     volumes:
       - ./jurisconsultor/documentos_legales:/docs
     networks:
       - jurisconsultor-net
 
   postgres_public:
-    image: postgres:13-alpine
+    image: pgvector/pgvector:pg13
     environment:
       POSTGRES_USER: ${PUBLIC_POSTGRES_USER}
       POSTGRES_PASSWORD: ${PUBLIC_POSTGRES_PASSWORD}

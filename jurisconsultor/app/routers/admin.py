@@ -4,9 +4,9 @@ from typing import List
 from pymongo.database import Database
 from bson import ObjectId
 
-from app.models import UserCreate, UserInDB, UserBase, UserUpdate, PyObjectId, UserResponse
-from app.dependencies import get_db, get_admin_user, get_project_lead_user
-from app.users import create_user, get_user
+from models import UserCreate, UserInDB, UserBase, UserUpdate, PyObjectId, UserResponse
+from dependencies import get_db, get_admin_user, get_project_lead_user
+from users import create_user, get_user
 
 logger = logging.getLogger(__name__)
 

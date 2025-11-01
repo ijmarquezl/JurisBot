@@ -6,8 +6,8 @@ from typing import Optional, List
 from pymongo.database import Database
 from datetime import datetime
 
-from app.utils import get_public_db_conn, generate_embedding
-from app.models import ConversationState, UserInDB
+from utils import get_public_db_conn, generate_embedding
+from models import ConversationState, UserInDB
 from app import tools
 
 LLM_URL = os.getenv("LLM_URL")

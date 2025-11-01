@@ -15,3 +15,7 @@ __pycache__/
 *.log
 .vscode/
 .idea/
+
+# Internal Prompts
+Monitoring.md
+PM_MCP.md

@@ -2,7 +2,7 @@ import os
 import glob
 import argparse
 from pypdf import PdfReader
-from app.utils import get_mongo_client, get_public_db_conn, get_private_db_conn, generate_embedding
+from utils import get_mongo_client, get_public_db_conn, get_private_db_conn, generate_embedding
 
 def process_and_store_documents(pdf_directory: str, db_type: str, company_id: str = None):
     """
@@ -52,11 +52,19 @@ def process_and_store_documents(pdf_directory: str, db_type: str, company_id: st
 
                 # Store in PostgreSQL with company_id
                 cur.execute(
-                    "INSERT INTO documents (content, embedding, source, company_id) VALUES (%s, %s, %s, %s) RETURNING id;",
-                    (chunk, embedding.tolist(), source_name, company_id)
+                    "INSERT INTO documents (content, embedding, source) VALUES (%s, %s, %s) RETURNING id;",
+                    (chunk, embedding.tolist(), source_name)
                 )
                 document_id = cur.fetchone()[0]
                 print(f"  - Stored chunk {i+1}/{len(chunks)} in PostgreSQL with id: {document_id}")
+
+                # Store document ownership if company_id is provided
+                if company_id:
+                    cur.execute(
+                        "INSERT INTO document_ownership (source, company_id) VALUES (%s, %s) ON CONFLICT (source, company_id) DO NOTHING;",
+                        (source_name, company_id)
+                    )
+                    print(f"  - Stored ownership for {source_name} with company {company_id}")
 
                 # Store metadata in MongoDB
                 mongo_doc = {

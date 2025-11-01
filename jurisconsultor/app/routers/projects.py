@@ -5,8 +5,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-from app.models import ProjectCreate, ProjectInDB, UserInDB, PyObjectId
-from app.dependencies import get_db, get_current_user, get_project_lead_user
+from models import ProjectCreate, ProjectInDB, UserInDB, PyObjectId
+from dependencies import get_db, get_current_user, get_project_lead_user
 
 router = APIRouter(
     prefix="/projects",

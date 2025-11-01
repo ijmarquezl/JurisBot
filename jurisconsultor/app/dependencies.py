@@ -3,10 +3,10 @@ from fastapi.security import OAuth2PasswordBearer
 from pymongo.database import Database
 from jose import JWTError
 
-from app.models import TokenData, UserInDB
-from app.security import verify_token
-from app.users import get_user
-from app.db_manager import get_db as get_db_from_manager # Import the new DB getter
+from models import TokenData, UserInDB
+from security import verify_token
+from users import get_user
+from db_manager import get_db as get_db_from_manager # Import the new DB getter
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
