@@ -51,6 +51,26 @@ Este script realizará las siguientes acciones:
 4.  Levantará o reiniciará todos los servicios de Docker Compose, incluyendo las nuevas bases de datos.
 5.  Creará el usuario administrador especificado en la base de datos del nuevo tenant.
 
+### Gestión de Usuarios
+
+La creación y gestión de usuarios se puede realizar de dos maneras:
+
+1.  **Desde la Interfaz de Usuario (UI) de la Aplicación (Recomendado para uso diario):**
+    *   Inicia sesión en la aplicación (`http://10.29.93.10`) con un usuario que tenga rol `admin` o `project_lead`.
+    *   Ve a la pestaña de "Panel de Administración".
+    *   Haz clic en el botón "Crear Nuevo Usuario".
+    *   Rellena los datos (Email, Contraseña, Nombre Completo) y selecciona el Rol deseado ("Admin", "Líder de Proyecto", "Miembro").
+    *   Esta es la forma más amigable y segura para la gestión de usuarios una vez que la aplicación está funcionando.
+
+2.  **Usando el Comando `docker exec` (Para configuración inicial o automatización):**
+    *   Este método es útil para crear el primer usuario administrador después de una instalación limpia, o para scripts de automatización.
+    *   El comando es:
+        ```bash
+        docker exec jurisbot-backend-1 python create_admin.py "email@empresa.com" "ContraseñaSegura" --full_name "Nombre Completo" --role "rol_deseado"
+        ```
+        Donde `rol_deseado` puede ser `admin`, `member` o `project_lead`.
+
+
 ### Reconstrucción y Reinicio General
 
 Después de realizar cambios en el código (backend, frontend, proxy) o en la configuración de Docker Compose, ejecuta:
