@@ -243,7 +243,10 @@ def list_documents(
 ):
     """Lists generated documents based on user role."""
     query = {}
-    if current_user.role == "admin":
+    if current_user.role == 'superadmin':
+        # Superadmin sees all documents
+        pass
+    elif current_user.role == "admin":
         company_projects = list(db.projects.find({"company_id": current_user.company_id}, {"_id": 1}))
         project_ids = [p["_id"] for p in company_projects]
         query = {"project_id": {"$in": project_ids}}

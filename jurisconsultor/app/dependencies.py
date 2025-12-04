@@ -46,3 +46,8 @@ def get_project_lead_user(current_user: UserInDB = Depends(get_current_user)) ->
     if current_user.role not in ["admin", "lead"]:
         raise HTTPException(status_code=403, detail="The user does not have project lead privileges.")
     return current_user
+
+def get_super_admin_user(current_user: UserInDB = Depends(get_current_user)) -> UserInDB:
+    if current_user.role != "superadmin":
+        raise HTTPException(status_code=403, detail="The user does not have super admin privileges.")
+    return current_user

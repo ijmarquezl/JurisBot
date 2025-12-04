@@ -56,6 +56,7 @@ class UserCreate(UserBase):
     model_config = model_config
     password: str
     company_id: Optional[PyObjectId] = None
+    role: Optional[str] = None
 
 class UserUpdate(BaseModel):
     model_config = model_config
@@ -157,3 +158,35 @@ class ConversationState(BaseModel):
     workflow: Optional[str] = None
     workflow_data: dict = Field(default_factory=dict)
     last_updated: datetime = Field(default_factory=datetime.utcnow)
+
+# --- Scraping Source Models ---
+class ScrapingSourceBase(BaseModel):
+    name: str
+    url: str # This is now the URL of the HTML page OR the direct PDF URL
+    local_filename: Optional[str] = None
+    scraper_type: str = "generic_html" # New field: e.g., "generic_html", "ordenjuridico_special"
+    
+    # New fields for flexible PDF link finding
+    pdf_direct_url: Optional[str] = None # If provided, scraper downloads directly from here
+    pdf_link_contains: Optional[str] = None # If not direct, look for links on 'url' containing this string
+    pdf_link_ends_with: Optional[str] = None # If not direct, look for links on 'url' ending with this string
+
+class ScrapingSourceCreate(ScrapingSourceBase):
+    pass
+
+class ScrapingSourceUpdate(BaseModel):
+    name: Optional[str] = None
+    url: Optional[str] = None
+    local_filename: Optional[str] = None
+    scraper_type: Optional[str] = None
+    pdf_direct_url: Optional[str] = None
+    pdf_link_contains: Optional[str] = None
+    pdf_link_ends_with: Optional[str] = None
+
+class ScrapingSourceInDB(ScrapingSourceBase):
+    model_config = model_config
+    id: PyObjectId = Field(alias='_id')
+    last_downloaded_at: Optional[datetime] = None
+    last_known_hash: Optional[str] = None
+    status: str = "pending" # e.g., pending, success, failed
+    error_message: Optional[str] = None

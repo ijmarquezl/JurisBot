@@ -12,7 +12,8 @@ services:
       - frontend
       - backend
     networks:
-      - jurisconsultor-net
+      jurisconsultor-net:
+        ipv4_address: 172.25.0.10
 
   # --- SHARED SERVICES (for all tenants) ---
 
@@ -24,7 +25,8 @@ services:
     depends_on:
       - backend
     networks:
-      - jurisconsultor-net
+      jurisconsultor-net:
+        ipv4_address: 172.25.0.11
 
   backend:
     build:
@@ -33,13 +35,15 @@ services:
     # PORTS REMOVED - Accessed via reverse proxy
     depends_on:
       - postgres_public
-      - postgres_tenant_a # Depends on tenant DBs for health/startup order
-      - mongodb_tenant_a
+      - postgres_a # Depends on tenant DBs for health/startup order
+      - mongodb_a
+    env_file:
+      - .env
     environment:
       # --- Database URIs ---
       # The backend app will need logic to select the correct tenant DB based on the user.
       PUBLIC_POSTGRES_URI: postgresql://${PUBLIC_POSTGRES_USER}:${PUBLIC_POSTGRES_PASSWORD}@postgres_public:5432/${PUBLIC_POSTGRES_DB}
-      TENANT_A_POSTGRES_URI: postgresql://${TENANT_A_POSTGRES_USER}:${TENANT_A_POSTGRES_PASSWORD}@postgres_tenant_a:5432/${TENANT_A_POSTGRES_DB}
+      TENANT_A_POSTGRES_URI: postgresql://${TENANT_A_POSTGRES_USER}:${TENANT_A_POSTGRES_PASSWORD}@postgres_a:5432/${TENANT_A_POSTGRES_DB}
       MONGO_URI: mongodb://${TENANT_MI_PRIMERA_EMPRESA_MONGO_USER}:${TENANT_MI_PRIMERA_EMPRESA_MONGO_PASSWORD}@mongodb_mi_primera_empresa:27017/${TENANT_MI_PRIMERA_EMPRESA_MONGO_DB}?authSource=admin
       MONGO_DB_NAME: ${TENANT_MI_PRIMERA_EMPRESA_MONGO_DB}
 
@@ -47,15 +51,64 @@ services:
       SECRET_KEY: ${SECRET_KEY}
       ALGORITHM: ${ALGORITHM}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES}
-      
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      LLM_MODEL_NAME: ${LLM_MODEL_NAME}
+      BACKEND_API_URL: ${BACKEND_API_URL}
+
       # --- External Services ---
       LLM_URL: ${LLM_URL}
       EMBEDDING_MODEL_NAME: ${EMBEDDING_MODEL_NAME}
-    command: ["/bin/bash", "-c", "sleep 15 && uvicorn main:app --host 0.0.0.0 --port 8000"]
+    command: [ "/bin/bash", "-c", "sleep 15 && uvicorn main:app --host 0.0.0.0 --port 8000" ]
     volumes:
       - ./jurisconsultor/documentos_legales:/docs
     networks:
-      - jurisconsultor-net
+      jurisconsultor-net:
+        ipv4_address: 172.25.0.12
+
+  scheduler:
+    build:
+      context: ./jurisconsultor
+      dockerfile: Dockerfile
+    depends_on:
+      - backend
+      - mongodb_mi_primera_empresa # Ensure MongoDB is up before scheduler tries to connect
+    env_file:
+      - .env
+    environment:
+      # The scheduler needs the same environment variables as the backend
+      # to connect to databases and other services.
+      PUBLIC_POSTGRES_URI: postgresql://${PUBLIC_POSTGRES_USER}:${PUBLIC_POSTGRES_PASSWORD}@postgres_public:5432/${PUBLIC_POSTGRES_DB}
+      TENANT_A_POSTGRES_URI: postgresql://${TENANT_A_POSTGRES_USER}:${TENANT_A_POSTGRES_PASSWORD}@postgres_a:5432/${TENANT_A_POSTGRES_DB}
+      MONGO_URI: mongodb://${TENANT_MI_PRIMERA_EMPRESA_MONGO_USER}:${TENANT_MI_PRIMERA_EMPRESA_MONGO_PASSWORD}@mongodb_mi_primera_empresa:27017/${TENANT_MI_PRIMERA_EMPRESA_MONGO_DB}?authSource=admin
+      MONGO_DB_NAME: ${TENANT_MI_PRIMERA_EMPRESA_MONGO_DB}
+      SECRET_KEY: ${SECRET_KEY}
+      ALGORITHM: ${ALGORITHM}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES}
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      LLM_MODEL_NAME: ${LLM_MODEL_NAME}
+      BACKEND_API_URL: ${BACKEND_API_URL}
+      LLM_URL: ${LLM_URL}
+      EMBEDDING_MODEL_NAME: ${EMBEDDING_MODEL_NAME}
+    command: ["python", "-u", "scheduler.py"]
+    networks:
+      jurisconsultor-net:
+
+  jurisbot-project-manager-mcp:
+    build:
+      context: ./project_manager_mcp
+      dockerfile: Dockerfile
+    container_name: jurisbot-project-manager-mcp
+    env_file:
+      - .env # Asegúrate de que tenga las variables de conexión a la BD privada del tenant
+    ports:
+      - "8001:8000" # Puerto para el tráfico del servidor MCP
+    depends_on:
+      - postgres_public # MCP server needs to connect to public DB for tenant lookup
+      - postgres_a # Example dependency for tenant A's DB
+      - mongodb_a # Example dependency for tenant A's DB
+    networks:
+      jurisconsultor-net:
+        ipv4_address: 172.25.0.13
 
   postgres_public:
     image: pgvector/pgvector:pg13
@@ -66,12 +119,13 @@ services:
     volumes:
       - postgres_public_data:/var/lib/postgresql/data
     networks:
-      - jurisconsultor-net
+      jurisconsultor-net:
+        ipv4_address: 172.25.0.14
 
   # --- EXAMPLE TENANT 'A' SERVICES ---
   # In a real production environment, these would be provisioned for each company.
 
-  postgres_tenant_a:
+  postgres_a:
     image: postgres:13-alpine
     environment:
       POSTGRES_USER: ${TENANT_A_POSTGRES_USER}
@@ -80,9 +134,10 @@ services:
     volumes:
       - postgres_tenant_a_data:/var/lib/postgresql/data
     networks:
-      - jurisconsultor-net
+      jurisconsultor-net:
+        ipv4_address: 172.25.0.15
 
-  mongodb_tenant_a:
+  mongodb_a:
     image: mongo:latest
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${TENANT_A_MONGO_USER}
@@ -90,13 +145,18 @@ services:
     volumes:
       - mongodb_tenant_a_data:/data/db
     networks:
-      - jurisconsultor-net
+      jurisconsultor-net:
+        ipv4_address: 172.25.0.16
 
 volumes:
   postgres_public_data:
   postgres_tenant_a_data:
   mongodb_tenant_a_data:
 
+
 networks:
   jurisconsultor-net:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.25.0.0/16

@@ -1,5 +1,11 @@
 import logging
 from logging.config import dictConfig
+from logging_config import LOGGING_CONFIG
+
+# Apply logging configuration as early as possible
+dictConfig(LOGGING_CONFIG)
+logger = logging.getLogger(__name__)
+
 from fastapi import FastAPI, Depends, HTTPException, status, Body
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,23 +14,18 @@ from jose import JWTError
 from pydantic import BaseModel
 from typing import Optional, List
 
-from logging_config import LOGGING_CONFIG
-import httpx
 from graph_agent import graph # New LangGraph agent
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, AIMessage
+from langgraph.errors import GraphRecursionError
 
 from models import UserCreate, UserInDB, Token, TokenData, UserBase, UserResponse
 from security import create_access_token, create_refresh_token, verify_password, verify_token
 from users import create_user, get_user
 from utils import get_mongo_client
-from routers import projects, tasks, admin, documents
+from routers import projects, tasks, admin, documents, sources, superadmin
 from dependencies import get_db, get_current_user, oauth2_scheme
 
 from db_manager import close_db_connection
-
-# Apply logging configuration
-dictConfig(LOGGING_CONFIG)
-logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="Jurisconsultor API",
@@ -61,6 +62,8 @@ app.include_router(projects.router)
 app.include_router(tasks.router)
 app.include_router(admin.router)
 app.include_router(documents.router)
+app.include_router(sources.router)
+app.include_router(superadmin.router)
 
 @app.post("/users/register", response_model=UserBase)
 def register(user: UserCreate, db: Database = Depends(get_db)):
@@ -145,22 +148,34 @@ async def ask(
 ):
     """Endpoint to interact with the new LangGraph conversational agent."""
     logger.info(f"User {current_user.email} is asking: '{request.question}'")
+    logger.info(f"[BEFORE TRY] About to invoke graph")
     
-    config = {"configurable": {"thread_id": current_user.email}}
+    config = {"configurable": {"thread_id": current_user.email}, "recursion_limit": 50}
     # Pass the access token into the graph's state
-    inputs = {"messages": [HumanMessage(content=request.question)], "access_token": token}
+    inputs = {"messages": [HumanMessage(content=request.question)], "access_token": token, "company_id": str(current_user.company_id)}
     final_answer = "Lo siento, no pude procesar tu solicitud."
     
     try:
-        async for event in graph.astream(inputs, config=config):
-            if "manager" in event:
-                final_answer = event["manager"]["messages"][-1].content
+        logger.info(f"[IN TRY] Invoking graph with inputs: messages={len(inputs['messages'])}, company_id={inputs['company_id']}")
+        final_state = graph.invoke(inputs, config=config)
+        logger.info(f"[AFTER INVOKE] Graph returned. Type: {type(final_state)}")
+        if final_state and final_state.get("messages"):
+            logger.info(f"[MESSAGES] Number of messages in final_state: {len(final_state['messages'])}")
+            last_message = final_state["messages"][-1]
+            logger.info(f"[LAST MSG] Last message type: {type(last_message).__name__}")
+            if hasattr(last_message, 'content'):
+                content_preview = str(last_message.content)[:200]
+                logger.info(f"[CONTENT] Last message content preview: {content_preview}")
+            if isinstance(last_message, AIMessage):
+                final_answer = last_message.content
+            else:
+                final_answer = str(last_message)
 
         logger.info(f"Agent provided answer to {current_user.email}.")
         return {"answer": final_answer}
-    except httpx.ConnectError as e:
-        logger.error(f"Connection to LLM failed: {e}")
-        return {"answer": "Lo siento, no puedo conectarme con el modelo de lenguaje en este momento. Por favor, asegúrate de que el servidor de Ollama esté funcionando y sea accesible."}
+    except GraphRecursionError as e:
+        logger.error(f"[EXCEPTION] Agent recursion limit reached: {e}", exc_info=True)
+        return {"answer": "Lo siento, el agente entró en un bucle y no pudo completar tu solicitud. Por favor, intenta reformular tu pregunta."}
     except Exception as e:
-        logger.error(f"An unexpected error occurred in the agent: {e}", exc_info=True)
+        logger.error(f"[EXCEPTION] An unexpected error occurred in the agent: {e}", exc_info=True)
         return {"answer": "Lo siento, ocurrió un error inesperado al procesar tu solicitud."}

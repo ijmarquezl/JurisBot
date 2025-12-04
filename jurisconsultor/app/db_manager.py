@@ -2,9 +2,7 @@ import os
 from pymongo import MongoClient
 from dotenv import load_dotenv
 
-# Load environment variables to ensure MONGO_URI is available
-dotenv_path = os.path.join(os.path.dirname(__file__), '..', '.env')
-load_dotenv(dotenv_path=dotenv_path)
+load_dotenv()
 
 MONGO_URI = os.getenv("MONGO_URI")
 MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "jurisconsultor") # Default to 'jurisconsultor'

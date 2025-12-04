@@ -34,20 +34,25 @@ def create_user(db: Database, user: UserCreate) -> UserInDB:
     hashed_password = get_password_hash(user.password)
     user_dict = user.dict(exclude={"password"})
     user_dict["hashed_password"] = hashed_password
-    
-    # Handle company assignment
-    if not user.company_id:
-        # If no company_id is provided, derive from email and get or create company
-        email_domain = user.email.split('@')[1]
-        company = get_or_create_company(db, company_name=email_domain)
-        user_dict["company_id"] = company.id
-    
-    # For now, the first user of a company becomes an admin
-    existing_users_in_company = db.users.count_documents({"company_id": user_dict["company_id"]})
-    if existing_users_in_company == 0:
-        user_dict["role"] = "admin"
+
+    # If the user is a superadmin, bypass company logic
+    if user.role == "superadmin":
+        user_dict["company_id"] = None
+        user_dict["role"] = "superadmin"
     else:
-        user_dict["role"] = "member"
+        # Handle company assignment
+        if not user.company_id:
+            # If no company_id is provided, derive from email and get or create company
+            email_domain = user.email.split('@')[1]
+            company = get_or_create_company(db, company_name=email_domain)
+            user_dict["company_id"] = company.id
+        
+        # For now, the first user of a company becomes an admin
+        existing_users_in_company = db.users.count_documents({"company_id": user_dict["company_id"]})
+        if existing_users_in_company == 0:
+            user_dict["role"] = "admin"
+        else:
+            user_dict["role"] = user.role if user.role else "member" # Use provided role, or default to member
 
     result = db.users.insert_one(user_dict)
     created_user = db.users.find_one({"_id": result.inserted_id})

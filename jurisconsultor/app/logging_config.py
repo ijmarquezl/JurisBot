@@ -36,5 +36,15 @@ LOGGING_CONFIG = {
             "handlers": ["console", "file"],
             "propagate": False,
         },
+        "graph_agent": {
+            "level": "DEBUG",
+            "handlers": ["console", "file"],
+            "propagate": False,
+        },
+        "tools": {
+            "level": "DEBUG",
+            "handlers": ["console", "file"],
+            "propagate": False,
+        },
     },
 }

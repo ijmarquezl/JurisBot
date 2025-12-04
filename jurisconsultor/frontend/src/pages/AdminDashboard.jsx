@@ -11,7 +11,7 @@ function AdminDashboard() {
 
   // Create User Dialog State
   const [openCreateDialog, setOpenCreateDialog] = useState(false);
-  const [newUserData, setNewUserData] = useState({ email: '', password: '', full_name: '' });
+  const [newUserData, setNewUserData] = useState({ email: '', password: '', full_name: '', role: 'member' });
   const [createLoading, setCreateLoading] = useState(false);
   const [createError, setCreateError] = useState('');
 
@@ -183,7 +183,7 @@ function AdminDashboard() {
                 <TableRow key={user._id}>
                   <TableCell>{user.email}</TableCell>
                   <TableCell>{user.full_name}</TableCell>
-                  <TableCell>{user.role}</TableCell>
+                  <TableCell>{user.role === 'lead' ? 'Líder de Proyecto' : user.role === 'admin' ? 'Admin' : 'Miembro'}</TableCell>
                   <TableCell>
                     <IconButton size="small" onClick={() => handleOpenEditDialog(user)}>
                       <EditIcon />
@@ -226,6 +226,19 @@ function AdminDashboard() {
               onChange={handleCreateUserChange}
               fullWidth
             />
+            <FormControl fullWidth>
+              <InputLabel>Rol</InputLabel>
+              <Select
+                label="Rol"
+                name="role"
+                value={newUserData.role}
+                onChange={handleCreateUserChange}
+              >
+                <MenuItem value="admin">Admin</MenuItem>
+                <MenuItem value="project_lead">Líder de Proyecto</MenuItem>
+                <MenuItem value="member">Miembro</MenuItem>
+              </Select>
+            </FormControl>
           </Stack>
           {createError && <Typography color="error" sx={{ mt: 2 }}>{createError}</Typography>}
         </DialogContent>

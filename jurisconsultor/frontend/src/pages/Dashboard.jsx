@@ -28,8 +28,8 @@ function CreateProjectDialog({ open, onClose, onCreated }) {
     };
     return (
         <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-            <DialogTitle>Crear Nuevo Proyecto</DialogTitle>
-            <DialogContent><Stack spacing={2} sx={{ mt: 1 }}><TextField autoFocus label="Nombre del Proyecto" value={name} onChange={(e) => setName(e.target.value)} fullWidth /><TextField label="Descripción" value={description} onChange={(e) => setDescription(e.target.value)} fullWidth multiline rows={3} /></Stack>{error && <Typography color="error" sx={{ mt: 2 }}>{error}</Typography>}</DialogContent>
+            <DialogTitle>Crear Nuevo Asunto</DialogTitle>
+            <DialogContent><Stack spacing={2} sx={{ mt: 1 }}><TextField autoFocus label="Nombre del Asunto" value={name} onChange={(e) => setName(e.target.value)} fullWidth /><TextField label="Descripción" value={description} onChange={(e) => setDescription(e.target.value)} fullWidth multiline rows={3} /></Stack>{error && <Typography color="error" sx={{ mt: 2 }}>{error}</Typography>}</DialogContent>
             <DialogActions><Button onClick={onClose}>Cancelar</Button><Button onClick={handleCreate} variant="contained" disabled={loading}>{loading ? <CircularProgress size={24} /> : 'Crear'}</Button></DialogActions>
         </Dialog>
     );
@@ -79,10 +79,10 @@ function DeleteProjectConfirmDialog({ open, onClose, onConfirmed, project }) {
     };
     return (
         <Dialog open={open} onClose={onClose}>
-            <DialogTitle>Confirmar Eliminación de Proyecto</DialogTitle>
+            <DialogTitle>Confirmar Eliminación de Asunto</DialogTitle>
             <DialogContent>
-                <Typography>¿Estás seguro de que quieres eliminar el proyecto <strong>{project?.name}</strong>?</Typography>
-                <Typography color="error">Esta acción también eliminará todas las tareas asociadas a este proyecto.</Typography>
+                <Typography>¿Estás seguro de que quieres eliminar el asunto <strong>{project?.name}</strong>?</Typography>
+                <Typography color="error">Esta acción también eliminará todas las tareas asociadas a este asunto.</Typography>
                 {error && <Typography color="error" sx={{ mt: 2 }}>{error}</Typography>}
             </DialogContent>
             <DialogActions>
@@ -128,10 +128,10 @@ function CreateDocumentDialog({ open, onClose, onCreated, projects }) {
                         fullWidth
                     />
                     <FormControl fullWidth>
-                        <InputLabel>Proyecto</InputLabel>
+                        <InputLabel>Asunto</InputLabel>
                         <Select
                             value={projectId}
-                            label="Proyecto"
+                            label="Asunto"
                             onChange={(e) => setProjectId(e.target.value)}
                         >
                             {projects.map((p) => (
@@ -153,16 +153,17 @@ function CreateDocumentDialog({ open, onClose, onCreated, projects }) {
 }
 
 // --- MAIN DASHBOARD COMPONENT ---
+import ChatWidget from '../components/ChatWidget';
+import SourceManagement from './SourceManagement';
+
+// --- MAIN DASHBOARD COMPONENT ---
 function Dashboard() {
   const [tab, setTab] = useState(0);
   const [currentUser, setCurrentUser] = useState(null);
   const [projects, setProjects] = useState([]);
-  const [tasks, ] = useState([]); // setTasks removed as it was unused
+  const [tasks, setTasks] = useState([]);
   const [generatedDocuments, setGeneratedDocuments] = useState([]);
-  const [selectedProject, ] = useState(null); // setSelectedProject removed as it was unused
-  const [chatHistory, setChatHistory] = useState([]);
-  const [chatInput, setChatInput] = useState('');
-  const [isAgentTyping, setIsAgentTyping] = useState(false);
+  const [selectedProject, setSelectedProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [openCreateProject, setOpenCreateProject] = useState(false);
@@ -184,6 +185,25 @@ function Dashboard() {
   // --- Data Fetching ---
   const fetchCurrentUser = useCallback(async () => { try { const res = await apiClient.get('/users/me'); setCurrentUser(res.data); } catch { setError('Error al cargar usuario.'); } }, []);
   const fetchProjects = useCallback(async () => { setLoading(true); try { const res = await apiClient.get('/projects/', { params: { include_archived: includeArchivedProjects } }); setProjects(res.data); } catch { setError('Error al cargar proyectos.'); } finally { setLoading(false); } }, [includeArchivedProjects]);
+  
+  const fetchTasks = useCallback(async (projectId) => {
+    if (!projectId) {
+      setTasks([]);
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await apiClient.get(`/tasks/project/${projectId}`);
+      setTasks(res.data);
+    } catch (err) {
+      logger.error("Error fetching tasks:", err);
+      setError('Error al cargar las tareas del proyecto.');
+      setTasks([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const fetchGeneratedDocuments = useCallback(async () => { 
     setLoading(true); 
     try { 
@@ -197,10 +217,21 @@ function Dashboard() {
   }, [showArchivedDocuments]);
   const fetchTemplates = useCallback(async () => { try { const res = await apiClient.get('/documents/templates'); setTemplates(res.data); } catch { setError('Error al cargar plantillas.'); } }, []);
 
-  // --- Placeholder functions to satisfy linter ---
-  const fetchTasks = useCallback(() => { /* TODO: Implement task fetching */ }, []);
-  const handleProjectSelect = useCallback(() => { /* TODO: Implement project selection logic */ }, []);
-  const handleStatusChange = useCallback(() => { /* TODO: Implement task status change */ }, []);
+  const handleProjectSelect = useCallback((project) => {
+    setSelectedProject(project);
+    fetchTasks(project?._id);
+  }, [fetchTasks]);
+
+  const handleStatusChange = useCallback(async (taskId, newStatus) => {
+    try {
+        setTasks(prevTasks => prevTasks.map(t => t._id === taskId ? { ...t, status: newStatus } : t));
+        await apiClient.put(`/tasks/${taskId}`, { status: newStatus });
+    } catch (err) {
+        logger.error("Error updating task status:", err);
+        setError('Error al actualizar la tarea.');
+        fetchTasks(selectedProject?._id); // Refetch to revert optimistic update
+    }
+  }, [selectedProject, fetchTasks]);
 
   useEffect(() => { fetchCurrentUser(); fetchTemplates(); }, [fetchCurrentUser, fetchTemplates]);
   useEffect(() => { if (tab === 0 || tab === 1) fetchProjects(); if (tab === 1) fetchGeneratedDocuments(); }, [tab, fetchProjects, fetchGeneratedDocuments]);
@@ -275,7 +306,7 @@ function Dashboard() {
     }
   };
 
-  const handleArchiveToggle = async (documentId, isArchived) => {
+  const handleArchiveToggleDocument = async (documentId, isArchived) => {
     setLoading(true);
     try {
         await apiClient.put(`/documents/${documentId}/archive`, { is_archived: !isArchived });
@@ -288,30 +319,16 @@ function Dashboard() {
     }
   };
 
-  const handleSendMessage = async () => {
-    if (!chatInput.trim()) return;
-    const userMessage = { sender: 'user', text: chatInput };
-    setChatHistory(prev => [...prev, userMessage]);
-    const currentChatInput = chatInput;
-    setChatInput('');
-    setIsAgentTyping(true);
+  const handleProjectArchiveToggle = async (projectId, isArchived) => {
+    setLoading(true);
     try {
-        const response = await apiClient.post('/ask', { question: currentChatInput });
-        const rawAnswer = response.data.answer;
-        const finalAnswerMarker = "Final Answer:";
-        let finalAnswer = rawAnswer;
-        const markerIndex = rawAnswer.lastIndexOf(finalAnswerMarker);
-        if (markerIndex !== -1) {
-            finalAnswer = rawAnswer.substring(markerIndex + finalAnswerMarker.length).trim();
-        }
-        const agentMessage = { sender: 'agent', text: finalAnswer };
-        setChatHistory(prev => [...prev, agentMessage]);
+        await apiClient.put(`/projects/${projectId}/archive`, { archive_status: !isArchived });
+        fetchProjects(); // Refetch projects to update the list
     } catch (err) {
-        logger.error("Error calling /ask endpoint:", err);
-        const errorMessage = { sender: 'agent', text: err.response?.data?.answer || 'Lo siento, ocurrió un error al procesar tu solicitud.' };
-        setChatHistory(prev => [...prev, errorMessage]);
+        logger.error("Error archiving project:", err);
+        setError(err.response?.data?.detail || 'Error al archivar/desarchivar el proyecto.');
     } finally {
-        setIsAgentTyping(false);
+        setLoading(false);
     }
   };
 
@@ -328,9 +345,9 @@ function Dashboard() {
       
       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
         <Tabs value={tab} onChange={handleTabChange}>
-          <Tab label="Proyectos y Tareas" />
+          <Tab label="Asuntos y Tareas" />
           <Tab label="Generador de Documentos" />
-          <Tab label="Chat de Consulta" />
+          {currentUser?.role === 'admin' && <Tab label="Administrar Fuentes" />}
         </Tabs>
       </Box>
 
@@ -340,7 +357,7 @@ function Dashboard() {
         <Grid container spacing={3}>
           <Grid item xs={12} md={4}>
             <Stack direction="row" justifyContent="space-between" alignItems="center">
-              <Typography variant="h6">Proyectos</Typography>
+              <Typography variant="h6">Asuntos</Typography>
               {canManageProjects && <Button startIcon={<AddIcon />} onClick={() => setOpenCreateProject(true)}>Crear</Button>}
             </Stack>
             <FormControlLabel control={<Switch checked={includeArchivedProjects} onChange={(e) => setIncludeArchivedProjects(e.target.checked)} />} label="Mostrar archivados" sx={{ mb: 1 }} />
@@ -351,7 +368,7 @@ function Dashboard() {
                     <ListItemText primary={p.name} secondary={p.is_archived ? 'Archivado' : ''} />
                     {canManageProjects && (
                         <Stack direction="row" spacing={0.5} onClick={(e) => e.stopPropagation()}>
-                            <IconButton edge="end" aria-label="archive" onClick={() => handleArchiveToggle(p._id, p.is_archived)} size="small">{p.is_archived ? <UnarchiveIcon /> : <ArchiveIcon />}</IconButton>
+                            <IconButton edge="end" aria-label="archive" onClick={() => handleProjectArchiveToggle(p._id, p.is_archived)} size="small">{p.is_archived ? <UnarchiveIcon /> : <ArchiveIcon />}</IconButton>
                             <IconButton edge="end" aria-label="delete" onClick={() => { setProjectToDelete(p); setOpenDeleteProject(true); }} size="small"><DeleteIcon /></IconButton>
                         </Stack>
                     )}
@@ -361,7 +378,7 @@ function Dashboard() {
           </Grid>
           <Grid item xs={12} md={8}>
             <Stack direction="row" justifyContent="space-between" alignItems="center">
-              <Typography variant="h6">{selectedProject ? `Tareas de "${selectedProject.name}"` : 'Selecciona un proyecto'}</Typography>
+              <Typography variant="h6">{selectedProject ? `Tareas del Asunto "${selectedProject.name}"` : 'Selecciona un asunto'}</Typography>
               {selectedProject && <Button startIcon={<AddIcon />} onClick={() => setOpenCreateTask(true)}>Nueva Tarea</Button>}
             </Stack>
             <Paper elevation={2} sx={{ maxHeight: '65vh', overflow: 'auto', p: 2 }}>
@@ -392,8 +409,8 @@ function Dashboard() {
                     <>
                         <TextField label="Nombre del Nuevo Documento" value={documentName} onChange={(e) => setDocumentName(e.target.value)} fullWidth />
                         <FormControl fullWidth>
-                            <InputLabel>Asignar a Proyecto</InputLabel>
-                            <Select value={selectedProjectId} label="Asignar a Proyecto" onChange={(e) => setSelectedProjectId(e.target.value)}>
+                            <InputLabel>Asignar a Asunto</InputLabel>
+                            <Select value={selectedProjectId} label="Asignar a Asunto" onChange={(e) => setSelectedProjectId(e.target.value)}>
                                 {projects.map(p => <MenuItem key={p._id} value={p._id}>{p.name}</MenuItem>)}
                             </Select>
                         </FormControl>
@@ -463,7 +480,7 @@ function Dashboard() {
                                         }}>
                                             <FolderOpenIcon />
                                         </IconButton>
-                                        <IconButton edge="end" aria-label="archive" onClick={() => handleArchiveToggle(doc._id, doc.is_archived)}>
+                                        <IconButton edge="end" aria-label="archive" onClick={() => handleArchiveToggleDocument(doc._id, doc.is_archived)}>
                                             {doc.is_archived ? <UnarchiveIcon /> : <ArchiveIcon />}
                                         </IconButton>
                                         <IconButton edge="end" aria-label="delete" onClick={() => handleDeleteDocument(doc._id)}>
@@ -474,7 +491,7 @@ function Dashboard() {
                             >
                                 <ListItemText 
                                     primary={doc.file_name} 
-                                    secondary={`Proyecto: ${projects.find(p => p._id === doc.project_id)?.name || 'N/A'} | Propietario: ${doc.owner_email} | Ruta: ${doc.file_path}`}
+                                    secondary={`Asunto: ${projects.find(p => p._id === doc.project_id)?.name || 'N/A'} | Propietario: ${doc.owner_email} | Ruta: ${doc.file_path}`}
                                 />
                             </ListItem>
                         )})}</List>
@@ -486,36 +503,13 @@ function Dashboard() {
         </Grid>
       )}
 
-      {/* Chat Tab (Simplified) */}
+      {/* Source Management Tab (Admin only) */}
       {tab === 2 && (
-        <Paper elevation={2} sx={{ height: '70vh' }}>
-            <Box sx={{ flexGrow: 1, overflow: 'auto', p: 2 }}>
-                {chatHistory.map((msg, index) => (
-                    <Box key={index} sx={{ mb: 2, display: 'flex', justifyContent: msg.sender === 'user' ? 'flex-end' : 'flex-start' }}>
-                        <Paper
-                            elevation={1}
-                            sx={{
-                                p: 1.5,
-                                borderRadius: msg.sender === 'user' ? '20px 20px 5px 20px' : '20px 20px 20px 5px',
-                                backgroundColor: msg.sender === 'user' ? 'primary.main' : 'grey.300',
-                                color: msg.sender === 'user' ? 'primary.contrastText' : 'text.primary',
-                                maxWidth: '100%', // Apply max width to the bubble itself
-                                wordWrap: 'break-word',
-                            }}
-                        >
-                            <Typography variant="body1">{msg.text}</Typography>
-                        </Paper>
-                    </Box>
-                ))}
-                {isAgentTyping && <CircularProgress size={24} sx={{ ml: 1 }} />}
-            </Box>
-            <Divider />
-            <Stack direction="row" spacing={1} sx={{ p: 2, alignItems: 'center' }}>
-                <TextField fullWidth placeholder="Escribe tu mensaje..." value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()} />
-                <Button variant="contained" onClick={handleSendMessage} endIcon={<SendIcon />} disabled={isAgentTyping}>Enviar</Button>
-            </Stack>
-        </Paper>
+        <SourceManagement />
       )}
+
+      {/* Render the ChatWidget */}
+      <ChatWidget />
     </Box>
   );
 }

@@ -3,7 +3,9 @@ import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import AdminDashboard from './pages/AdminDashboard';
-import ProjectLeadDashboard from './pages/ProjectLeadDashboard';
+import AsuntoLeadDashboard from './pages/AsuntoLeadDashboard';
+import BackofficeDashboard from './pages/BackofficeDashboard'; // Import Backoffice
+import SourceManagement from './pages/SourceManagement'; // Import SourceManagement
 import MainLayout from './layouts/MainLayout';
 import logger from './logger';
 
@@ -39,7 +41,9 @@ function App() {
       <Route element={token ? <MainLayout onLogout={handleLogout} /> : <Navigate to="/" />}>
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="admin" element={<AdminDashboard />} />
-        <Route path="project-lead" element={<ProjectLeadDashboard />} />
+        <Route path="asunto-lead" element={<AsuntoLeadDashboard />} />
+        <Route path="backoffice" element={<BackofficeDashboard />} />
+        <Route path="sources" element={<SourceManagement />} />
       </Route>
     </Routes>
   );

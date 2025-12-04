@@ -77,20 +77,34 @@ def archive_project(
 def list_projects(
     db: Database = Depends(get_db), 
     current_user: UserInDB = Depends(get_current_user),
-    include_archived: Optional[bool] = False # New query parameter
+    include_archived: Optional[bool] = False
 ):
-    """List all projects for the user's company where the user is a member."""
-    if not current_user.company_id:
-        return [] # Or raise an error, returning empty list is safer
-        
-    query_filter = {
-        "company_id": {"$in": [str(current_user.company_id), current_user.company_id]},
-        "members": current_user.email
-    }
-    if not include_archived:
-        query_filter["is_archived"] = False # Filter out archived by default
+    """
+    List projects.
+    - Superadmins see all projects.
+    - Admins see all projects in their company.
+    - Other users see only projects where they are a member.
+    """
+    query_filter = {}
 
-    logger.info(f"Querying projects with filter: {query_filter}") # ADDED LOG
+    if current_user.role == 'superadmin':
+        # Superadmin can see all projects, so no company filter is applied.
+        pass
+    elif current_user.company_id:
+        # For other roles, filter by company
+        query_filter["company_id"] = {"$in": [str(current_user.company_id), current_user.company_id]}
+        # If the user is not an admin, further restrict to projects they are a member of
+        if current_user.role != 'admin':
+            query_filter["members"] = current_user.email
+    else:
+        # Non-superadmin user without a company sees no projects
+        return []
+
+    # Filter for archived projects
+    if not include_archived:
+        query_filter["is_archived"] = {"$in": [False, None]}
+
+    logger.info(f"Querying projects for user {current_user.email} (role: {current_user.role}) with filter: {query_filter}")
 
     projects_cursor = db.projects.find(query_filter)
     return [ProjectInDB(**p) for p in projects_cursor]

@@ -22,9 +22,10 @@ pytest
 pytest-mock
 
 # LangGraph Dependencies
-langchain
-langgraph
-langchain-openai
-langchain-community
-langchain-ollama
-langgraph-checkpoint-mongodb
+langchain==0.2.11
+langgraph==0.2.38
+langchain-openai==0.1.15
+langchain-community==0.2.0
+langgraph-checkpoint-mongodb==0.1.0
+APScheduler==3.10.4
+tenacity==8.2.3

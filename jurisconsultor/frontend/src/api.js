@@ -54,4 +54,18 @@ apiClient.interceptors.response.use(
   }
 );
 
+export const createUser = async (email, password, fullName, role) => {
+    try {
+        const response = await apiClient.post('/admin/users', {
+            email: email,
+            password: password,
+            full_name: fullName,
+            role: role
+        });
+        return response.data;
+    } catch (error) {
+        throw error;
+    }
+};
+
 export default apiClient;

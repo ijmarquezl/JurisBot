@@ -29,7 +29,7 @@ function TabPanel(props) {
   );
 }
 
-function ProjectLeadDashboard() {
+function AsuntoLeadDashboard() {
   const [tab, setTab] = useState(0); // 0 for Tareas, 1 for Miembros
   const [currentUser, setCurrentUser] = useState(null);
   const [projects, setProjects] = useState([]);
@@ -177,12 +177,12 @@ function ProjectLeadDashboard() {
 
   return (
     <Box sx={{ flexGrow: 1 }}>
-      <Typography variant="h4" gutterBottom>Panel de Líder de Proyecto</Typography>
+      <Typography variant="h4" gutterBottom>Panel de Líder de Asunto</Typography>
 
       <Grid container spacing={3}>
         {/* Projects List */}
         <Grid item xs={12} md={4}>
-          <Typography variant="h6" gutterBottom>Mis Proyectos</Typography>
+          <Typography variant="h6" gutterBottom>Mis Asuntos</Typography>
           <Paper elevation={2} sx={{ maxHeight: '70vh', overflow: 'auto' }}>
             {loading ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}><CircularProgress /></Box>
@@ -205,7 +205,7 @@ function ProjectLeadDashboard() {
         {/* Project Details (Tasks/Members) */}
         <Grid item xs={12} md={8}>
           <Typography variant="h6" gutterBottom>
-            {selectedProject ? `Detalles de "${selectedProject.name}"` : 'Selecciona un proyecto'}
+            {selectedProject ? `Detalles del Asunto "${selectedProject.name}"` : 'Selecciona un asunto'}
           </Typography>
           {selectedProject && (
             <Paper elevation={2} sx={{ p: 2 }}>
@@ -245,11 +245,11 @@ function ProjectLeadDashboard() {
                     </React.Fragment>
                   ))}
                 </List>
-                {tasks.length === 0 && <Typography sx={{ mt: 2, textAlign: 'center', color: 'text.secondary' }}>No hay tareas en este proyecto.</Typography>}
+                {tasks.length === 0 && <Typography sx={{ mt: 2, textAlign: 'center', color: 'text.secondary' }}>No hay tareas en este asunto.</Typography>}
               </TabPanel>
               <TabPanel value={tab} index={1}>
                 {/* Members List */}
-                <Typography variant="h6" gutterBottom>Miembros del Proyecto</Typography>
+                <Typography variant="h6" gutterBottom>Miembros del Asunto</Typography>
                 <List>
                   {selectedProject.members.map((memberEmail) => {
                     const memberUser = usersInCompany?.find(u => u.email === memberEmail); // ADDED OPTIONAL CHAINING
@@ -315,4 +315,4 @@ function ProjectLeadDashboard() {
   );
 }
 
-export default ProjectLeadDashboard;
+export default AsuntoLeadDashboard;
