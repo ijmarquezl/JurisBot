@@ -10,6 +10,10 @@ COPY requirements.txt .
 # Install any needed packages specified in requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Install Playwright browsers and dependencies
+# We need to install system dependencies for chromium
+RUN playwright install --with-deps chromium
+
 # Copy the database migration script
 COPY db_migration.py .
 
