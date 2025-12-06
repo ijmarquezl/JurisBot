@@ -118,8 +118,9 @@ def delete_generated_document(
         raise HTTPException(status_code=404, detail="Document not found.")
 
     # 2. Check permissions
-    # Owner, Project Lead (of the document's project), or Admin can delete
+    # Owner, Project Lead (of the document's project), Admin, or Superadmin can delete
     can_delete = (
+        current_user.role == "superadmin" or # Superadmin can delete any document
         document["owner_email"] == current_user.email or
         current_user.role == "admin" or
         (
@@ -160,8 +161,9 @@ def archive_generated_document(
         raise HTTPException(status_code=404, detail="Document not found.")
 
     # 2. Check permissions
-    # Owner, Project Lead (of the document's project), or Admin can archive/unarchive
+    # Owner, Project Lead (of the document's project), Admin, or Superadmin can archive/unarchive
     can_archive = (
+        current_user.role == "superadmin" or # Superadmin can archive/unarchive any document
         document["owner_email"] == current_user.email or
         current_user.role == "admin" or
         (

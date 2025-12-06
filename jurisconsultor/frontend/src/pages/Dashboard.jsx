@@ -347,7 +347,7 @@ function Dashboard() {
         <Tabs value={tab} onChange={handleTabChange}>
           <Tab label="Asuntos y Tareas" />
           <Tab label="Generador de Documentos" />
-          {currentUser?.role === 'admin' && <Tab label="Administrar Fuentes" />}
+          {/* The "Administrar Fuentes" tab used to be here */}
         </Tabs>
       </Box>
 
@@ -503,10 +503,7 @@ function Dashboard() {
         </Grid>
       )}
 
-      {/* Source Management Tab (Admin only) */}
-      {tab === 2 && (
-        <SourceManagement />
-      )}
+      {/* The SourceManagement component used to be rendered here for tab === 2 */}
 
       {/* Render the ChatWidget */}
       <ChatWidget />

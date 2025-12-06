@@ -36,4 +36,4 @@
 - Se introduce un framework de pruebas (`pytest`) en el backend.
 
 ** V 0.0.6 **
-- 
+- Agregar nuevas funcionalidades al backoffice para que un usuario superadminstrador pueda tener acceso a todos los elementos del sistema sin importar la compañía o equipo, y que tenga permisos para realizar todas las acciones.

@@ -21,6 +21,8 @@ services:
     build:
       context: ./jurisconsultor/frontend
       dockerfile: Dockerfile
+    environment:
+      VITE_API_URL: http://marcalnet.ddns.net # Set VITE_API_URL for the frontend
     # PORTS REMOVED - Accessed via reverse proxy
     depends_on:
       - backend

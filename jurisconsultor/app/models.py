@@ -162,7 +162,7 @@ class ConversationState(BaseModel):
 # --- Scraping Source Models ---
 class ScrapingSourceBase(BaseModel):
     name: str
-    url: str # This is now the URL of the HTML page OR the direct PDF URL
+    url: Optional[str] = None # This is now optional
     local_filename: Optional[str] = None
     scraper_type: str = "generic_html" # New field: e.g., "generic_html", "ordenjuridico_special"
     

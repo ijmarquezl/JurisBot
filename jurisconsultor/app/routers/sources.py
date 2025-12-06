@@ -3,6 +3,7 @@ from pymongo.database import Database
 from typing import List
 import csv
 import io
+import re
 
 from models import (
     ScrapingSourceCreate, 
@@ -21,6 +22,20 @@ router = APIRouter(
 
 SOURCES_COLLECTION = "scraping_sources"
 
+def _generate_filename(name: str) -> str:
+    """Sanitizes a string to be a valid filename."""
+    if not name:
+        return "unnamed_source.pdf"
+    # Lowercase, replace spaces and invalid chars with underscores
+    s = name.lower().strip()
+    s = re.sub(r'\s+', '_', s)
+    s = re.sub(r'[^a-z0-9_.]', '', s)
+    # Ensure it ends with .pdf, but don't double-add it
+    if s.endswith('.pdf'):
+        return s
+    return f"{s}.pdf"
+
+
 @router.post("/upload_csv", status_code=status.HTTP_201_CREATED)
 async def upload_sources_csv(
     file: UploadFile = File(...),
@@ -28,36 +43,52 @@ async def upload_sources_csv(
 ):
     """
     Upload a CSV file to bulk-create scraping sources.
-    The CSV must have a header row with at least 'name' and 'url'.
-    Optional headers: 'scraper_type', 'pdf_direct_url', 'pdf_link_contains', 'pdf_link_ends_with'.
+    The CSV must have a header row. The 'name' (or 'Nombre') column is required.
     """
     if not file.filename.endswith('.csv'):
         raise HTTPException(status_code=400, detail="File must be a CSV.")
 
     content = await file.read()
     stream = io.StringIO(content.decode("utf-8"))
-    reader = csv.DictReader(stream)
-
-    sources_to_create = []
-    required_fields = ['name', 'url']
     
-    for row in reader:
-        if not all(field in row for field in required_fields):
-            raise HTTPException(status_code=400, detail=f"CSV row is missing one of the required fields: {required_fields}. Row: {row}")
+    try:
+        reader = csv.DictReader(stream)
+        sources_to_create = []
         
-        source_data = {
-            "name": row.get("name"),
-            "url": row.get("url"),
-            "scraper_type": row.get("scraper_type", "generic_html"),
-            "pdf_direct_url": row.get("pdf_direct_url"),
-            "pdf_link_contains": row.get("pdf_link_contains"),
-            "pdf_link_ends_with": row.get("pdf_link_ends_with"),
-            "status": "pending", # Default status
-        }
-        sources_to_create.append(ScrapingSourceCreate(**source_data).dict())
+        for row in reader:
+            source_name = row.get("name") or row.get("Nombre")
+            if not source_name:
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"CSV row is missing the required 'name' or 'Nombre' field. Row: {row}"
+                )
+
+            # Create the Pydantic model directly from the row data for validation
+            source_model = ScrapingSourceCreate(
+                name=source_name,
+                url=row.get("url") or row.get("URL"),
+                scraper_type=row.get("scraper_type") or row.get("Tipo de Scraper"),
+                pdf_direct_url=row.get("pdf_direct_url") or row.get("URL directa a PDF"),
+                pdf_link_contains=row.get("pdf_link_contains") or row.get("PDF Link contiene"),
+                pdf_link_ends_with=row.get("pdf_link_ends_with") or row.get("PDF Link termina con"),
+                local_filename=row.get("local_filename") or row.get("Nombre de archivo local")
+            )
+
+            # Now, apply the generation logic to the model instance
+            if not source_model.local_filename:
+                source_model.local_filename = _generate_filename(source_model.name)
+
+            # Append the dictionary created from the final, validated model
+            # Using exclude_unset=True is cleaner than manual dict cleaning
+            sources_to_create.append(source_model.dict(exclude_unset=True))
+
+    except csv.Error as e:
+        raise HTTPException(status_code=400, detail=f"Error processing CSV file: {e}")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error processing row or data validation: {e}")
 
     if not sources_to_create:
-        raise HTTPException(status_code=400, detail="CSV file is empty or contains no data.")
+        raise HTTPException(status_code=400, detail="CSV file is empty or contains no valid data.")
 
     result = db[SOURCES_COLLECTION].insert_many(sources_to_create)
     
@@ -72,6 +103,9 @@ def create_source(
     """
     Create a new scraping source. (Admin only)
     """
+    if not source.local_filename:
+        source.local_filename = _generate_filename(source.name)
+        
     source_dict = source.dict()
     result = db[SOURCES_COLLECTION].insert_one(source_dict)
     created_source = db[SOURCES_COLLECTION].find_one({"_id": result.inserted_id})
@@ -107,6 +141,10 @@ def update_source(
     update_data = source_update.dict(exclude_unset=True)
     if not update_data:
         raise HTTPException(status_code=400, detail="No update data provided")
+
+    # If name is updated, we might need to update the filename if it's not explicitly provided
+    if "name" in update_data and "local_filename" not in update_data:
+        update_data["local_filename"] = _generate_filename(update_data["name"])
 
     result = db[SOURCES_COLLECTION].update_one(
         {"_id": source_id},

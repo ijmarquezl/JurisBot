@@ -3,7 +3,7 @@ import axios from 'axios';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 const apiClient = axios.create({
-  baseURL: API_URL,
+  baseURL: API_URL, // API_URL from env already contains /api
 });
 
 // Request interceptor to add the auth token header to requests
@@ -31,7 +31,8 @@ apiClient.interceptors.response.use(
       originalRequest._retry = true;
       try {
         const refreshToken = localStorage.getItem('refreshToken');
-        const response = await axios.post('/api/refresh', { refresh_token: refreshToken });
+        // Use apiClient to automatically handle the base URL and prefixes
+        const response = await apiClient.post('/refresh', { refresh_token: refreshToken });
         
         const { access_token } = response.data;
         localStorage.setItem('accessToken', access_token);

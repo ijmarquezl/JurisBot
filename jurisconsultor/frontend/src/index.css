@@ -4,8 +4,7 @@
   font-weight: 400;
 
   color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  /* color and background-color will be handled by MUI's CssBaseline and ThemeProvider */
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -26,11 +25,7 @@ html, body, #root {
   height: 100%;
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column; /* Ensure content flows vertically */
-  justify-content: center; /* Center vertically */
-  align-items: center; /* Center horizontally */
-  min-width: 320px;
+  /* REMOVED flex properties that were breaking the layout */
 }
 
 h1 {
@@ -57,6 +52,9 @@ button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
+/* The @media query for light theme is no longer necessary here, 
+   as MUI handles it, but we can leave it for now as it won't conflict
+   with the more specific component styles. */
 @media (prefers-color-scheme: light) {
   :root {
     color: #213547;

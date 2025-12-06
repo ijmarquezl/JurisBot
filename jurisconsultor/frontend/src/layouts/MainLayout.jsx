@@ -1,15 +1,46 @@
 import React, { useState } from 'react';
 import { Outlet, Link as RouterLink } from 'react-router-dom';
-import { AppBar, Toolbar, Typography, Button, Box, IconButton, Drawer, List, ListItem, ListItemButton, ListItemText, Divider } from '@mui/material';
+import { AppBar, Toolbar, Typography, Button, Box, IconButton, Drawer, List, ListItem, ListItemButton, ListItemText, Divider, Tooltip } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
+import { useAuth } from '../AuthContext';
+import { useTheme } from '../ThemeContext';
+
+// Icons for theme toggle
+import Brightness4Icon from '@mui/icons-material/Brightness4'; // Dark
+import Brightness7Icon from '@mui/icons-material/Brightness7'; // Light
+import SettingsBrightnessIcon from '@mui/icons-material/SettingsBrightness'; // System
 
 const drawerWidth = 240;
 
 function MainLayout({ onLogout }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { user } = useAuth();
+  const { mode, toggleTheme } = useTheme();
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
+  };
+
+  const handleThemeChange = () => {
+    if (mode === 'light') {
+      toggleTheme('dark');
+    } else if (mode === 'dark') {
+      toggleTheme('system');
+    } else {
+      toggleTheme('light');
+    }
+  };
+
+  const themeIcons = {
+    light: <Brightness7Icon />,
+    dark: <Brightness4Icon />,
+    system: <SettingsBrightnessIcon />,
+  };
+
+  const themeTooltips = {
+    light: 'Modo Claro',
+    dark: 'Modo Oscuro',
+    system: 'Modo del Sistema',
   };
 
   const drawer = (
@@ -25,7 +56,7 @@ function MainLayout({ onLogout }) {
           </ListItemButton>
         </ListItem>
         <ListItem disablePadding>
-          <ListItemButton component={RouterLink} to="/project-lead" sx={{ textAlign: 'center' }}>
+          <ListItemButton component={RouterLink} to="/asunto-lead" sx={{ textAlign: 'center' }}>
             <ListItemText primary="Líder Asuntos" />
           </ListItemButton>
         </ListItem>
@@ -34,17 +65,20 @@ function MainLayout({ onLogout }) {
             <ListItemText primary="Admin" />
           </ListItemButton>
         </ListItem>
-        <ListItem disablePadding>
-          <ListItemButton component={RouterLink} to="/sources" sx={{ textAlign: 'center' }}>
-            <ListItemText primary="Fuentes" />
-          </ListItemButton>
-        </ListItem>
-        {/* TEMP LINK FOR SUPERADMIN */}
-        <ListItem disablePadding>
-          <ListItemButton component={RouterLink} to="/backoffice" sx={{ textAlign: 'center', backgroundColor: 'rgba(255, 0, 0, 0.1)' }}>
-            <ListItemText primary="Backoffice" />
-          </ListItemButton>
-        </ListItem>
+        {user && user.role === 'superadmin' && (
+          <ListItem disablePadding>
+            <ListItemButton component={RouterLink} to="/sources" sx={{ textAlign: 'center' }}>
+              <ListItemText primary="Fuentes" />
+            </ListItemButton>
+          </ListItem>
+        )}
+        {user && user.role === 'superadmin' && (
+          <ListItem disablePadding>
+            <ListItemButton component={RouterLink} to="/backoffice" sx={{ textAlign: 'center', backgroundColor: 'rgba(255, 0, 0, 0.1)' }}>
+              <ListItemText primary="Backoffice" />
+            </ListItemButton>
+          </ListItem>
+        )}
         <ListItem disablePadding>
           <ListItemButton onClick={onLogout} sx={{ textAlign: 'center' }}>
             <ListItemText primary="Cerrar Sesión" />
@@ -55,7 +89,7 @@ function MainLayout({ onLogout }) {
   );
 
   return (
-    <Box sx={{ display: 'flex' }}>
+    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
       <AppBar component="nav">
         <Toolbar>
           <IconButton
@@ -86,13 +120,24 @@ function MainLayout({ onLogout }) {
             <Button color="inherit" component={RouterLink} to="/admin">
               Admin
             </Button>
-            <Button color="inherit" component={RouterLink} to="/sources">
-              Fuentes
-            </Button>
-            {/* TEMP LINK FOR SUPERADMIN */}
-            <Button color="inherit" component={RouterLink} to="/backoffice" sx={{ backgroundColor: 'rgba(255, 255, 255, 0.1)' }}>
-              Backoffice
-            </Button>
+            {user && user.role === 'superadmin' && (
+              <Button color="inherit" component={RouterLink} to="/sources">
+                Fuentes
+              </Button>
+            )}
+            {user && user.role === 'superadmin' && (
+              <Button color="inherit" component={RouterLink} to="/backoffice" sx={{ backgroundColor: 'rgba(255, 255, 255, 0.1)' }}>
+                Backoffice
+              </Button>
+            )}
+            <Tooltip title={`Cambiar a ${themeTooltips[mode === 'light' ? 'dark' : mode === 'dark' ? 'system' : 'light']}`}>
+              <IconButton
+                onClick={handleThemeChange}
+                color="inherit"
+              >
+                {themeIcons[mode]}
+              </IconButton>
+            </Tooltip>
             <Button color="inherit" onClick={onLogout}>
               Cerrar Sesión
             </Button>
@@ -116,8 +161,8 @@ function MainLayout({ onLogout }) {
         </Drawer>
       </nav>
       <Box component="main" sx={{ p: 3, width: '100%' }}>
-        <Toolbar /> {/* This is to offset content below the AppBar */}
-        <Outlet /> {/* This will render the matched child route */}
+        <Toolbar />
+        <Outlet />
       </Box>
     </Box>
   );

@@ -38,12 +38,12 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Database = Depends
 # --- Role-based Dependencies ---
 
 def get_admin_user(current_user: UserInDB = Depends(get_current_user)) -> UserInDB:
-    if current_user.role != "admin":
+    if current_user.role not in ["admin", "superadmin"]:
         raise HTTPException(status_code=403, detail="The user does not have admin privileges.")
     return current_user
 
 def get_project_lead_user(current_user: UserInDB = Depends(get_current_user)) -> UserInDB:
-    if current_user.role not in ["admin", "lead"]:
+    if current_user.role not in ["admin", "lead", "superadmin"]:
         raise HTTPException(status_code=403, detail="The user does not have project lead privileges.")
     return current_user
 

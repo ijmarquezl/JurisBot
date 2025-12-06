@@ -31,12 +31,14 @@ def create_project(project: ProjectCreate, db: Database = Depends(get_db), curre
 
 @router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_project(project_id: PyObjectId, db: Database = Depends(get_db), lead_user: UserInDB = Depends(get_project_lead_user)):
-    """Deletes a project and all its associated tasks. Only project leads or admins can delete projects."""
-    # Verify project exists and belongs to the user's company
-    project_to_delete = db.projects.find_one({
-        "_id": project_id,
-        "company_id": {"$in": [str(lead_user.company_id), lead_user.company_id]}
-    })
+    """Deletes a project and all its associated tasks. Only project leads, admins, or superadmins can delete projects."""
+    
+    query_filter = {"_id": project_id}
+    if lead_user.role != "superadmin":
+        # If not superadmin, restrict to projects within their company
+        query_filter["company_id"] = {"$in": [str(lead_user.company_id), lead_user.company_id]}
+
+    project_to_delete = db.projects.find_one(query_filter)
     if not project_to_delete:
         raise HTTPException(status_code=404, detail="Project not found or user does not have access.")
 
@@ -57,11 +59,13 @@ def archive_project(
     db: Database = Depends(get_db),
     lead_user: UserInDB = Depends(get_project_lead_user)
 ):
-    """Archives or unarchives a project. Only project leads or admins can change archive status."""
-    project_to_update = db.projects.find_one({
-        "_id": project_id,
-        "company_id": {"$in": [str(lead_user.company_id), lead_user.company_id]}
-    })
+    """Archives or unarchives a project. Only project leads, admins, or superadmins can change archive status."""
+    query_filter = {"_id": project_id}
+    if lead_user.role != "superadmin":
+        # If not superadmin, restrict to projects within their company
+        query_filter["company_id"] = {"$in": [str(lead_user.company_id), lead_user.company_id]}
+
+    project_to_update = db.projects.find_one(query_filter)
     if not project_to_update:
         raise HTTPException(status_code=404, detail="Project not found or user does not have access.")
     
@@ -97,8 +101,11 @@ def list_projects(
         if current_user.role != 'admin':
             query_filter["members"] = current_user.email
     else:
-        # Non-superadmin user without a company sees no projects
-        return []
+        # If user has no company_id and is not superadmin, they see no projects
+        # This case should ideally not happen for admin/lead/member roles
+        # but if it does, they won't see any projects.
+        if current_user.role != 'superadmin':
+            return []
 
     # Filter for archived projects
     if not include_archived:

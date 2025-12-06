@@ -111,20 +111,49 @@ def delete_company(company_id: PyObjectId, db: Database = Depends(get_db)):
     return
 
 # --- Log Management ---
+import glob
+import os
 
-LOG_FILE_PATH = "jurisconsultor.log"
+# Assume logs are in the main directory where the app is run
+LOG_DIRECTORY = "." 
 
-@router.get("/logs", response_model=List[str])
-def get_system_logs(lines: int = 200):
+@router.get("/logs/list", response_model=List[str])
+def list_log_files():
     """
-    Retrieves the last N lines from the system log file.
+    Lists all available .log files in the log directory.
     """
     try:
-        with open(LOG_FILE_PATH, 'r') as f:
-            # Read all lines and return the last N
+        # Use glob to find all files ending with .log
+        log_files = [os.path.basename(f) for f in glob.glob(os.path.join(LOG_DIRECTORY, '*.log'))]
+        if not log_files:
+            logger.warning("No .log files found in the directory.")
+        return log_files
+    except Exception as e:
+        logger.error(f"Error listing log files: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error listing log files: {e}")
+
+@router.get("/logs/{filename}", response_model=List[str])
+def get_system_logs(filename: str, lines: int = 200):
+    """
+    Retrieves the last N lines from a specific log file.
+    Includes security check to prevent path traversal.
+    """
+    # --- Security Check ---
+    # Get a list of allowed files
+    allowed_files = [os.path.basename(f) for f in glob.glob(os.path.join(LOG_DIRECTORY, '*.log'))]
+    if filename not in allowed_files:
+        logger.warning(f"Attempted to access non-allowed or non-existent log file: {filename}")
+        raise HTTPException(status_code=404, detail="Log file not found or access denied.")
+
+    log_file_path = os.path.join(LOG_DIRECTORY, filename)
+
+    try:
+        with open(log_file_path, 'r') as f:
             lines_from_file = f.readlines()
             return lines_from_file[-lines:]
     except FileNotFoundError:
+        # This case should be caught by the security check above, but included for robustness
         raise HTTPException(status_code=404, detail="Log file not found.")
     except Exception as e:
+        logger.error(f"Error reading log file {filename}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error reading log file: {e}")

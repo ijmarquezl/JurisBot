@@ -163,7 +163,7 @@ def run_scraper():
                         {"$set": {"status": "failed", "error_message": "Specialized scraper failed to find PDF link."}}
                     )
                     continue
-            elif scraper_type == 'generic_html':
+            elif scraper_type in ['generic_html', 'HTML Genérico']:
                 # Option 1: Direct PDF URL provided
                 if source.get('pdf_direct_url'):
                     pdf_url = source['pdf_direct_url']

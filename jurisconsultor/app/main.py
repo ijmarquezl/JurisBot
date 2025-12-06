@@ -6,7 +6,7 @@ from logging_config import LOGGING_CONFIG
 dictConfig(LOGGING_CONFIG)
 logger = logging.getLogger(__name__)
 
-from fastapi import FastAPI, Depends, HTTPException, status, Body
+from fastapi import FastAPI, Depends, HTTPException, status, Body, APIRouter
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from pymongo.database import Database
@@ -58,14 +58,9 @@ async def shutdown_event():
     close_db_connection()
 
 # --- API Routers ---
-app.include_router(projects.router)
-app.include_router(tasks.router)
-app.include_router(admin.router)
-app.include_router(documents.router)
-app.include_router(sources.router)
-app.include_router(superadmin.router)
+auth_router = APIRouter()
 
-@app.post("/users/register", response_model=UserBase)
+@auth_router.post("/users/register", response_model=UserBase, tags=["Auth"])
 def register(user: UserCreate, db: Database = Depends(get_db)):
     """Register a new user."""
     logger.info(f"Registering new user: {user.email}")
@@ -77,7 +72,7 @@ def register(user: UserCreate, db: Database = Depends(get_db)):
     logger.info(f"User {user.email} registered successfully.")
     return new_user
 
-@app.post("/token", response_model=Token)
+@auth_router.post("/token", response_model=Token, tags=["Auth"])
 def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Database = Depends(get_db)):
     """Login user and return access and refresh tokens."""
     logger.info(f"Login attempt for user: {form_data.username}")
@@ -98,7 +93,7 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
         "token_type": "bearer",
     }
 
-@app.post("/refresh", response_model=Token)
+@auth_router.post("/refresh", response_model=Token, tags=["Auth"])
 def refresh_access_token(refresh_token: str = Body(..., embed=True), db: Database = Depends(get_db)):
     """Refresh an access token."""
     logger.info("Attempting to refresh access token.")
@@ -127,10 +122,18 @@ def refresh_access_token(refresh_token: str = Body(..., embed=True), db: Databas
         logger.error("Invalid refresh token.", exc_info=True)
         raise HTTPException(status_code=401, detail="Invalid refresh token")
 
-@app.get("/users/me", response_model=UserResponse)
+@auth_router.get("/users/me", response_model=UserResponse, tags=["Auth"])
 def read_users_me(current_user: UserInDB = Depends(get_current_user)):
     """Get the current logged-in user."""
     return current_user
+
+app.include_router(auth_router, prefix="/api")
+app.include_router(projects.router, prefix="/api")
+app.include_router(tasks.router, prefix="/api")
+app.include_router(admin.router, prefix="/api")
+app.include_router(documents.router, prefix="/api")
+app.include_router(sources.router, prefix="/api")
+app.include_router(superadmin.router, prefix="/api")
 
 class AskRequest(BaseModel):
     question: str
