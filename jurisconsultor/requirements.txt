@@ -30,3 +30,4 @@ langgraph-checkpoint-mongodb==0.1.0
 APScheduler==3.10.4
 tenacity==8.2.3
 playwright
+python-slugify
