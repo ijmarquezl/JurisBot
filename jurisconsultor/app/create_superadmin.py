@@ -4,11 +4,8 @@ import sys
 from pymongo import MongoClient
 from getpass import getpass
 
-# This is a bit of a hack to allow importing from the parent directory
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from app.models import UserCreate
-from app.users import create_user, get_user
+from models import UserCreate
+from users import create_user, get_user
 
 def main():
     """

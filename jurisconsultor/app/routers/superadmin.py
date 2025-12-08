@@ -83,10 +83,51 @@ def list_all_companies(db: Database = Depends(get_db)):
 
 @router.post("/companies", response_model=CompanyInDB, status_code=201)
 def create_company(company: CompanyCreate, db: Database = Depends(get_db)):
-    """Creates a new company (tenant)."""
+    """Creates a new company (tenant) and provisions its infrastructure."""
     company_dict = company.dict()
     result = db.companies.insert_one(company_dict)
     created_company = db.companies.find_one({"_id": result.inserted_id})
+    company_id = str(created_company["_id"])
+    
+    # Call Orchestrator to provision infrastructure
+    try:
+        import requests
+        orchestrator_url = "http://orchestrator:8000/provision-tenant" # Internal docker network URL
+        payload = {
+            "company_id": company_id,
+            "company_name": created_company["name"]
+        }
+        logger.info(f"Requesting provisioning for company {company_id}...")
+        response = requests.post(orchestrator_url, json=payload, timeout=30)
+        
+        if response.status_code == 200:
+            data = response.json()
+            # Update company with connection info
+            db.companies.update_one(
+                {"_id": result.inserted_id},
+                {"$set": {
+                    "mongo_uri": data["mongo_uri"],
+                    "mongo_db_name": data["mongo_db_name"],
+                    "infrastructure_status": "provisioned"
+                }}
+            )
+            # Re-fetch updated company
+            created_company = db.companies.find_one({"_id": result.inserted_id})
+        else:
+            logger.error(f"Orchestrator failed: {response.text}")
+            # Mark as failed but return created company
+            db.companies.update_one(
+                {"_id": result.inserted_id},
+                {"$set": {"infrastructure_status": "failed_provisioning"}}
+            )
+            
+    except Exception as e:
+        logger.error(f"Failed to call orchestrator: {e}")
+        db.companies.update_one(
+            {"_id": result.inserted_id},
+            {"$set": {"infrastructure_status": "failed_call"}}
+        )
+
     return CompanyInDB(**created_company)
 
 @router.delete("/companies/{company_id}", status_code=204)

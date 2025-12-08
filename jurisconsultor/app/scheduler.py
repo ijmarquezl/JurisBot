@@ -1,7 +1,7 @@
 import logging
 from apscheduler.schedulers.blocking import BlockingScheduler
 from web_downloader import run_scraper
-from app.scraper_agent import run_scraper_agent
+from scraper_agent import run_scraper_agent
 import asyncio
 
 # Configure logging explicitly to ensure output is captured

@@ -11,8 +11,8 @@ from langchain_core.messages import BaseMessage, SystemMessage, HumanMessage
 from langchain_core.tools import tool
 from langgraph.graph import StateGraph, END
 
-from app.browser_tools import extract_interactive_elements, resolve_law_pdf_url
-from app.utils import get_mongo_client
+from browser_tools import extract_interactive_elements, resolve_law_pdf_url
+from utils import get_mongo_client
 from langchain_openai import ChatOpenAI
 from langchain_community.chat_models import ChatOllama
 
@@ -243,7 +243,15 @@ async def run_scraper_agent():
 
     # Fetch all active discovery sources
     # We look for entries that start with 'discovery_'
-    cursor = collection.find({"scraper_type": {"$regex": "^discovery_"}, "status": "active"})
+    cursor = collection.find({
+        "scraper_type": {"$regex": "^discovery_"}, 
+        "$or": [
+            {"status": "active"}, 
+            {"status": "pending"},
+            {"status": "failed"},
+            {"status": {"$exists": False}}
+        ]
+    })
     sources = list(cursor)
 
     logger.info(f"Found {len(sources)} discovery sources to process.")

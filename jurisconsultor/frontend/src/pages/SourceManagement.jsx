@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import {
     Typography, Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Button,
     CircularProgress, Alert, Chip, IconButton, Collapse, Dialog, DialogTitle, DialogContent, DialogActions,
-    TextField, Stack, FormControl, InputLabel, Select, MenuItem
+    TextField, Stack, FormControl, InputLabel, Select, MenuItem, Tabs, Tab
 } from '@mui/material';
-import { UploadFile as UploadFileIcon, ExpandMore as ExpandMoreIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
+import { UploadFile as UploadFileIcon, ExpandMore as ExpandMoreIcon, Edit as EditIcon, Delete as DeleteIcon, PlayArrow as PlayArrowIcon } from '@mui/icons-material';
 import apiClient from '../api';
 import logger from '../logger';
 
@@ -84,6 +84,7 @@ function SourceList() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [expandedRow, setExpandedRow] = useState(null);
+    const [tabValue, setTabValue] = useState(0); // 0: Seeds, 1: Documents
 
     // Dialog states for CRUD
     const [openSourceDialog, setOpenSourceDialog] = useState(false);
@@ -96,12 +97,15 @@ function SourceList() {
     const [sourceToDelete, setSourceToDelete] = useState(null);
     const [deleteLoading, setDeleteLoading] = useState(false);
     const [deleteError, setDeleteError] = useState('');
+    const [scraperLoading, setScraperLoading] = useState(false);
+    const [scraperMessage, setScraperMessage] = useState('');
 
 
     const fetchSources = async () => {
         setLoading(true);
         try {
-            const response = await apiClient.get('/sources');
+            const typeFilter = tabValue === 0 ? 'seed' : 'document';
+            const response = await apiClient.get('/sources', { params: { type_filter: typeFilter } });
             setSources(response.data.map(s => ({ ...s, id: s._id }))); // Map _id to id
         } catch (err) {
             setError('Error al cargar las fuentes.');
@@ -113,8 +117,12 @@ function SourceList() {
 
     useEffect(() => {
         fetchSources();
-    }, []);
-    
+    }, [tabValue]); // Re-fetch when tab changes
+
+    const handleTabChange = (event, newValue) => {
+        setTabValue(newValue);
+    };
+
     const handleRowExpand = (id) => {
         setExpandedRow(expandedRow === id ? null : id);
     };
@@ -134,7 +142,9 @@ function SourceList() {
 
     // --- CRUD Handlers ---
     const handleOpenCreate = () => {
-        setCurrentSource({ name: '', url: '', scraper_type: 'generic_html', pdf_direct_url: '', pdf_link_contains: '', pdf_link_ends_with: '' });
+        // Default scraper type based on tab
+        const defaultType = tabValue === 0 ? 'discovery_ordenjuridico' : 'generic_html';
+        setCurrentSource({ name: '', url: '', scraper_type: defaultType, pdf_direct_url: '', pdf_link_contains: '', pdf_link_ends_with: '' });
         setIsEditing(false);
         setDialogError('');
         setOpenSourceDialog(true);
@@ -202,6 +212,49 @@ function SourceList() {
         }
     };
 
+    const handleRunScraper = async () => {
+        setScraperLoading(true);
+        setScraperMessage('');
+        try {
+            const response = await apiClient.post('/scrape-laws'); // Using api.js which adds base url (but base url is /api in vite proxy or /api in backend?) 
+            // Wait, api.js has baseURL: API_URL. API_URL is http://localhost:8000 usually.
+            // routers/scraper.py has prefix="/api" in main.py: app.include_router(scraper.router, prefix="/api")
+            // So endpoint is /api/scrape-laws. 
+            // api.js baseURL usually points to root, but let's check. 
+            // In main.py: app.include_router(scraper.router, prefix="/api") -> url is /api/scrape-laws
+            // In api.js: const apiClient = axios.create({ baseURL: API_URL });
+            // If API_URL is localhost:8000, then we need to post to '/api/scrape-laws' (if prefix is applied there) or just '/scrape-laws' if api.js adds /api?
+            // Checking api.js: const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+            // It doesn't seem to add /api automatically.
+            // But check App usage: apiClient.post('/admin/users'...)
+            // main.py: app.include_router(admin.router, prefix="/api")
+            // So /admin/users becomes /api/admin/users? No, fastapi prefix is /api.
+            // Wait, look at main.py: app.include_router(admin.router, prefix="/api")
+            // So the path is /api/users/register (for auth).
+            // Let's assume we need to prepend /api if not already there, OR api.js baseURL includes /api.
+            // But usually API_URL is just host.
+            // Let's look at `fetchSources`: apiClient.get('/sources').
+            // main.py: app.include_router(sources.router, prefix="/api").
+            // So it calls http://localhost:8000/sources? That would 404 if prefix is /api.
+            // Unless `apiClient` adds /api or the backend doesn't have prefix for sources?
+            // backend main.py: app.include_router(sources.router, prefix="/api") -> /api/sources.
+            // So if `fetchSources` calls `/sources`, then `apiClient` MUST have `baseURL` ending in `/api` OR `API_URL` env var has `/api`.
+            // Let's assume consistent usage. `fetchSources` uses `/sources`. `handleRunScraper` should likely use `/scrape-laws`.
+            // But wait, scraper router is included with prefix `/api` too.
+            // So if `fetchSources` (/sources) works, then `/scrape-laws` should work if I follow the same pattern.
+            // Let's use `/scrape-laws` to match `/sources`.
+
+            setScraperMessage('Agente scraper iniciado correctamente.');
+        } catch (err) {
+            setScraperMessage('Error al iniciar el scraper: ' + (err.response?.data?.detail || err.message));
+
+        } finally {
+            setScraperLoading(false);
+            // Clear message after 5 seconds
+            setTimeout(() => setScraperMessage(''), 5000);
+        }
+    };
+
 
     if (loading) {
         return <CircularProgress />;
@@ -213,11 +266,40 @@ function SourceList() {
 
     return (
         <Box>
-            <Typography variant="h6" gutterBottom>Fuentes de Datos Públicos</Typography>
-            <CsvUploader onUploadSuccess={fetchSources} />
-            <Button variant="contained" onClick={handleOpenCreate} sx={{ mb: 2 }}>
-                Crear Nueva Fuente
-            </Button>
+            <Typography variant="h6" gutterBottom>Gestión de Fuentes y Semillas</Typography>
+
+            <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
+                <Tabs value={tabValue} onChange={handleTabChange}>
+                    <Tab label="Semillas de Descubrimiento" />
+                    <Tab label="Documentos Extraídos" />
+                </Tabs>
+            </Box>
+
+            {tabValue === 1 && <CsvUploader onUploadSuccess={fetchSources} />}
+
+            <Box sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'center' }}>
+                <Button variant="contained" onClick={handleOpenCreate}>
+                    {tabValue === 0 ? "Nueva Semilla" : "Nueva Fuente"}
+                </Button>
+
+                {tabValue === 0 && (
+                    <Button
+                        variant="outlined"
+                        color="secondary"
+                        onClick={handleRunScraper}
+                        startIcon={scraperLoading ? <CircularProgress size={20} /> : <PlayArrowIcon />}
+                        disabled={scraperLoading}
+                    >
+                        {scraperLoading ? 'Iniciando...' : 'Ejecutar Scraper'}
+                    </Button>
+                )}
+            </Box>
+
+            {scraperMessage && (
+                <Alert severity={scraperMessage.includes('Error') ? 'error' : 'success'} sx={{ mb: 2 }}>
+                    {scraperMessage}
+                </Alert>
+            )}
             <TableContainer component={Paper}>
                 <Table>
                     <TableHead>
@@ -241,7 +323,7 @@ function SourceList() {
                                             size="small"
                                             onClick={() => handleRowExpand(source.id)}
                                         >
-                                            {expandedRow === source.id ? <ExpandMoreIcon style={{ transform: 'rotate(180deg)' }}/> : <ExpandMoreIcon />}
+                                            {expandedRow === source.id ? <ExpandMoreIcon style={{ transform: 'rotate(180deg)' }} /> : <ExpandMoreIcon />}
                                         </IconButton>
                                     </TableCell>
                                     <TableCell>{source.name}</TableCell>
@@ -264,12 +346,12 @@ function SourceList() {
                                             <Box sx={{ margin: 1 }}>
                                                 <Typography variant="subtitle2" gutterBottom>Detalles Adicionales:</Typography>
                                                 <Box component="pre" sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all', fontSize: '0.8rem', bgcolor: '#f5f5f5', p: 1, borderRadius: 1 }}>
-                                                    {JSON.stringify({ 
+                                                    {JSON.stringify({
                                                         local_filename: source.local_filename,
-                                                        pdf_direct_url: source.pdf_direct_url, 
-                                                        pdf_link_contains: source.pdf_link_contains, 
-                                                        pdf_link_ends_with: source.pdf_link_ends_with, 
-                                                        error_message: source.error_message 
+                                                        pdf_direct_url: source.pdf_direct_url,
+                                                        pdf_link_contains: source.pdf_link_contains,
+                                                        pdf_link_ends_with: source.pdf_link_ends_with,
+                                                        error_message: source.error_message
                                                     }, null, 2)}
                                                 </Box>
                                             </Box>
@@ -294,7 +376,7 @@ function SourceList() {
                             <Select label="Tipo de Scraper" name="scraper_type" value={currentSource?.scraper_type || 'generic_html'} onChange={handleSourceChange}>
                                 <MenuItem value="generic_html">HTML Genérico</MenuItem>
                                 <MenuItem value="ordenjuridico_special">Orden Jurídico Especial</MenuItem>
-                                {/* Add other scraper types as needed */}
+                                <MenuItem value="discovery_ordenjuridico">Descubrimiento (Semilla)</MenuItem>
                             </Select>
                         </FormControl>
                         <TextField label="URL Directa de PDF (opcional)" name="pdf_direct_url" value={currentSource?.pdf_direct_url || ''} onChange={handleSourceChange} fullWidth />

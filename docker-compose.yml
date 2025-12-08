@@ -91,9 +91,21 @@ services:
       BACKEND_API_URL: ${BACKEND_API_URL}
       LLM_URL: ${LLM_URL}
       EMBEDDING_MODEL_NAME: ${EMBEDDING_MODEL_NAME}
-    command: ["python", "-u", "scheduler.py"]
+    command: [ "python", "-u", "scheduler.py" ]
     networks:
       jurisconsultor-net:
+
+
+  orchestrator:
+    build:
+      context: ./orchestrator
+      dockerfile: Dockerfile
+    container_name: jurisbot-orchestrator
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock # Privileged access to create containers
+    networks:
+      jurisconsultor-net:
+        ipv4_address: 172.25.0.20
 
   jurisbot-project-manager-mcp:
     build:
@@ -102,6 +114,9 @@ services:
     container_name: jurisbot-project-manager-mcp
     env_file:
       - .env # Asegúrate de que tenga las variables de conexión a la BD privada del tenant
+    environment:
+      MONGO_URI: mongodb://${TENANT_MI_PRIMERA_EMPRESA_MONGO_USER}:${TENANT_MI_PRIMERA_EMPRESA_MONGO_PASSWORD}@mongodb_mi_primera_empresa:27017/${TENANT_MI_PRIMERA_EMPRESA_MONGO_DB}?authSource=admin
+      MONGO_DB_NAME: ${TENANT_MI_PRIMERA_EMPRESA_MONGO_DB}
     ports:
       - "8001:8000" # Puerto para el tráfico del servidor MCP
     depends_on:

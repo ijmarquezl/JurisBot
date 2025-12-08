@@ -46,6 +46,9 @@ class CompanyCreate(CompanyBase):
 class CompanyInDB(CompanyBase):
     model_config = model_config
     id: PyObjectId = Field(alias='_id')
+    infrastructure_status: Optional[str] = None
+    mongo_uri: Optional[str] = None
+    mongo_db_name: Optional[str] = None
 
 # --- User Models ---
 class UserBase(BaseModel):

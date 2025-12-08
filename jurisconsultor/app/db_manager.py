@@ -11,7 +11,9 @@ MONGO_MEMORY_DB_NAME = os.getenv("MONGO_MEMORY_DB_NAME", "jurisconsultor_memory"
 if not MONGO_URI:
     raise RuntimeError("MONGO_URI environment variable not set.")
 
-# Create a single, reusable client instance
+from functools import lru_cache
+
+# Create a single, reusable client instance for main DB
 client = MongoClient(MONGO_URI)
 
 def get_db():
@@ -21,6 +23,16 @@ def get_db():
 def get_memory_db():
     """Returns the database specifically for the agent's memory."""
     return client[MONGO_MEMORY_DB_NAME]
+
+@lru_cache(maxsize=100)
+def get_tenant_client(mongo_uri: str):
+    """Cached client for tenant databases."""
+    return MongoClient(mongo_uri)
+
+def get_tenant_db(mongo_uri: str, db_name: str):
+    """Returns a tenant-specific database connection."""
+    client = get_tenant_client(mongo_uri)
+    return client[db_name]
 
 def close_db_connection():
     """Closes the client's connection to MongoDB."""

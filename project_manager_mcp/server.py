@@ -21,39 +21,75 @@ app = FastAPI(
     version="0.1.0",
 )
 
+import traceback
+
 # --- Database Connection (MCP Server will connect to tenant DBs) ---
 def get_tenant_db_connection(tenant_id: str):
-    # HOTFIX: Map specific ObjectId to tenant slug for the demo environment
-    if tenant_id == "69095aeed381a1dfeca80d50":
-        tenant_id = "mi_primera_empresa"
+    """
+    Connects to the tenant's private database.
+    First, connects to the Public DB to find the tenant's 'mongo_uri'.
+    Then, connects to that URI.
+    """
+    try:
+        # 1. Connect to Public DB
+        public_mongo_uri = os.getenv("MONGO_URI") # Main/Public DB URI from env
+        public_db_name = os.getenv("MONGO_DB_NAME", "jurisconsultor")
+        
+        if not public_mongo_uri:
+             logger.error("Public MONGO_URI not found in env.")
+             raise HTTPException(status_code=500, detail="Public MONGO_URI not found in env.")
 
-    tenant_id_upper = tenant_id.upper().replace('-', '_') # Ensure valid env var name
+        client_public = MongoClient(public_mongo_uri)
+        db_public = client_public[public_db_name]
+        
+        # 2. Lookup Tenant
+        company = None
+        try:
+            # Try finding by string ID first, then ObjectId
+            logger.info(f"Looking for tenant {tenant_id}...")
+            company = db_public.companies.find_one({"_id": ObjectId(tenant_id)})
+        except:
+            logger.warning(f"Could not convert {tenant_id} to ObjectId. Trying as string.")
+            company = db_public.companies.find_one({"_id": tenant_id})
+            
+        if not company:
+            client_public.close()
+            logger.error(f"Tenant {tenant_id} not found in public directory.")
+            raise HTTPException(status_code=404, detail=f"Tenant {tenant_id} not found in public directory.")
 
-    # MongoDB connection
-    mongo_user = os.getenv(f"TENANT_{tenant_id_upper}_MONGO_USER")
-    mongo_pass = os.getenv(f"TENANT_{tenant_id_upper}_MONGO_PASSWORD")
-    mongo_db = os.getenv(f"TENANT_{tenant_id_upper}_MONGO_DB")
-    
-    if not all([mongo_user, mongo_pass, mongo_db]):
-        raise HTTPException(status_code=500, detail=f"MongoDB credentials for tenant {tenant_id} not found.")
-    
-    mongo_uri = f"mongodb://{mongo_user}:{mongo_pass}@mongodb_{tenant_id}:27017/{mongo_db}?authSource=admin"
-    mongo_client = MongoClient(mongo_uri)
-    mongo_db_conn = mongo_client[mongo_db]
+        # 3. Get Private URI
+        private_mongo_uri = company.get("mongo_uri")
+        private_db_name = company.get("mongo_db_name")
 
-    # PostgreSQL connection (not used by these tools, but kept for completeness)
-    pg_user = os.getenv(f"TENANT_{tenant_id_upper}_POSTGRES_USER")
-    pg_pass = os.getenv(f"TENANT_{tenant_id_upper}_POSTGRES_PASSWORD")
-    pg_db = os.getenv(f"TENANT_{tenant_id_upper}_POSTGRES_DB")
+        # Fallback for legacy static tenants (mi_primera_empresa) if migration script didn't run
+        if not private_mongo_uri:
+            # Check if it is the legacy hardcoded one
+            if company.get("name") == "Mi Primera Empresa" or tenant_id == "69095aeed381a1dfeca80d50":
+                 # Use the manual env var fallback
+                 tenant_slug = "mi_primera_empresa"
+                 tenant_id_upper = tenant_slug.upper()
+                 mongo_user = os.getenv(f"TENANT_{tenant_id_upper}_MONGO_USER")
+                 mongo_pass = os.getenv(f"TENANT_{tenant_id_upper}_MONGO_PASSWORD")
+                 mongo_db = os.getenv(f"TENANT_{tenant_id_upper}_MONGO_DB")
+                 if all([mongo_user, mongo_pass, mongo_db]):
+                      private_mongo_uri = f"mongodb://{mongo_user}:{mongo_pass}@mongodb_{tenant_slug}:27017/{mongo_db}?authSource=admin"
+                      private_db_name = mongo_db
+        
+        client_public.close()
 
-    # We don't raise an error if PG credentials are not found, as these tools only use Mongo
-    pg_conn = None
-    if all([pg_user, pg_pass, pg_db]):
-        pg_uri = f"postgresql://{pg_user}:{pg_pass}@postgres_{tenant_id}:5432/{pg_db}"
-        pg_conn = connect(pg_uri)
+        if not private_mongo_uri:
+             logger.error(f"Tenant {tenant_id} validation failed: No 'mongo_uri' found.")
+             raise HTTPException(status_code=500, detail=f"Tenant {tenant_id} validation failed: No 'mongo_uri' found and not a legacy tenant.")
 
-    return {"mongo": mongo_db_conn, "postgres": pg_conn}
+        # 4. Connect to Private DB
+        logger.info(f"Connecting to private DB: {private_db_name}")
+        client_private = MongoClient(private_mongo_uri)
+        db_private = client_private[private_db_name if private_db_name else "test"] # fallback name if missing
 
+        return {"mongo": db_private, "postgres": None}
+    except Exception as e:
+        traceback.print_exc()
+        raise e
 
 # --- MCP Tools (exposed as API endpoints) ---
 
@@ -70,31 +106,6 @@ class CreateTaskRequest(BaseModel):
     title: str
     tenant_id: str
     description: Optional[str] = None
-
-@app.post("/tools/create_project")
-async def create_project_tool(request: CreateProjectRequest):
-    """Crea un nuevo proyecto en el sistema de gestión legal para un tenant específico."""
-    try:
-        tenant_id = request.tenant_id
-        db_conns = get_tenant_db_connection(tenant_id)
-        mongo_db = db_conns["mongo"]
-        
-        project_doc = {
-            "name": request.project_name,
-            "description": request.project_description,
-            "company_id": tenant_id,
-            "owner_email": request.user_email, # Use the user's email from the request
-            "members": [request.user_email], # Add the user as the first member
-            "created_at": datetime.utcnow(),
-            "is_archived": False # Explicitly set is_archived to False on creation
-        }
-        
-        result = mongo_db.projects.insert_one(project_doc)
-        project_id = str(result.inserted_id)
-        
-        return {"success": True, "project_id": project_id, "project_name": request.project_name}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to create project: {e}")
 
 @app.get("/tools/list_projects")
 async def list_projects_tool(tenant_id: str):
@@ -118,6 +129,7 @@ async def list_projects_tool(tenant_id: str):
             
         return {"success": True, "projects": projects_list}
     except Exception as e:
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Failed to list projects: {e}")
 
 @app.post("/tools/create_task")

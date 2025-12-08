@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, BackgroundTasks
-from app.scraper_agent import run_scraper_agent
+from scraper_agent import run_scraper_agent
 import logging
 
 router = APIRouter()
@@ -16,7 +16,8 @@ async def trigger_scraper(background_tasks: BackgroundTasks):
 async def run_scraper_task():
     try:
         logger.info("Starting scheduled/manual scraper agent...")
-        result = await run_scraper_agent()
-        logger.info(f"Scraper agent finished. Logs: {result.get('logs')}")
+        results = await run_scraper_agent()
+        for idx, result in enumerate(results):
+            logger.info(f"Scraper agent finished for source index {idx}. Logs: {result.get('logs')}")
     except Exception as e:
         logger.error(f"Scraper agent failed: {e}", exc_info=True)

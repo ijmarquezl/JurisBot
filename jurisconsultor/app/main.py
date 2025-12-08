@@ -144,7 +144,7 @@ def read_root():
     """Root endpoint for health checks."""
     return {"status": "ok"}
 
-@app.post("/ask")
+@app.post("/api/ask")
 async def ask(
     request: AskRequest,
     current_user: UserInDB = Depends(get_current_user),

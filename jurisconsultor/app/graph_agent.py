@@ -47,7 +47,7 @@ def fill_template_and_save_document(template_name: str, project_id: str, documen
     return legacy_tools.fill_template_and_save_document(template_name, document_name, context)
 
 @tool
-def list_projects(dummy_input: str = "Este es un input dummy") -> str:
+def list_projects() -> str:
     """Lista todos los proyectos disponibles para el usuario."""
     return legacy_tools.list_projects()
 

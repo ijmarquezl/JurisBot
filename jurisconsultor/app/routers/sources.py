@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from pymongo.database import Database
-from typing import List
+from typing import List, Optional
 import csv
 import io
 import re
@@ -107,16 +107,33 @@ def create_source(
         source.local_filename = _generate_filename(source.name)
         
     source_dict = source.dict()
+    
+    # Set default status
+    if source.scraper_type.startswith("discovery_"):
+        source_dict["status"] = "active"
+    else:
+        source_dict["status"] = "pending"
+
     result = db[SOURCES_COLLECTION].insert_one(source_dict)
     created_source = db[SOURCES_COLLECTION].find_one({"_id": result.inserted_id})
     return ScrapingSourceInDB(**created_source)
 
 @router.get("/", response_model=List[ScrapingSourceInDB])
-def list_sources(db: Database = Depends(get_db)):
+def list_sources(
+    type_filter: Optional[str] = None, 
+    db: Database = Depends(get_db)
+):
     """
     List all scraping sources. (Admin only)
+    Optionally filter by type: 'seed' or 'document'.
     """
-    sources = db[SOURCES_COLLECTION].find()
+    query = {}
+    if type_filter == 'seed':
+        query = {"scraper_type": {"$regex": "^discovery_"}}
+    elif type_filter == 'document':
+        query = {"scraper_type": {"$not": {"$regex": "^discovery_"}}}
+    
+    sources = db[SOURCES_COLLECTION].find(query)
     return [ScrapingSourceInDB(**s) for s in sources]
 
 @router.get("/{source_id}", response_model=ScrapingSourceInDB)
