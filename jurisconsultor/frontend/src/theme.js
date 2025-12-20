@@ -105,6 +105,34 @@ export const getTheme = (mode) => {
                         WebkitBackgroundClip: 'text',
                         WebkitTextFillColor: 'transparent',
                         filter: 'drop-shadow(0px 2px 2px rgba(0,0,0,0.5))',
+                    },
+                    h4: { /* Dashboard Title Style */
+                        fontWeight: 700,
+                        color: isDark ? '#e0e0e0' : '#333',
+                        textShadow: isDark ? '0 0 10px rgba(0,255,255,0.3)' : 'none'
+                    }
+                }
+            },
+            MuiTabs: {
+                styleOverrides: {
+                    indicator: {
+                        backgroundColor: palette.primary.main,
+                        height: '3px',
+                        boxShadow: `0 0 10px ${palette.primary.main}`
+                    }
+                }
+            },
+            MuiTab: {
+                styleOverrides: {
+                    root: {
+                        textTransform: 'none',
+                        fontSize: '1rem',
+                        fontWeight: 600,
+                        color: palette.text.secondary,
+                        '&.Mui-selected': {
+                            color: isDark ? '#fff' : '#000',
+                            textShadow: isDark ? `0 0 10px ${palette.primary.main}` : 'none'
+                        }
                     }
                 }
             }

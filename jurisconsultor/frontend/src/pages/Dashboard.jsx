@@ -418,7 +418,7 @@ function Dashboard() {
       <DeleteProjectConfirmDialog open={openDeleteProject} onClose={() => setOpenDeleteProject(false)} onConfirmed={fetchProjects} project={projectToDelete} />
       <CreateDocumentDialog open={openCreateDocument} onClose={() => setOpenCreateDocument(false)} onCreated={fetchGeneratedDocuments} projects={projects} />
 
-      <Typography variant="h4" gutterBottom>Dashboard</Typography>
+      <Typography variant="h1" className="titulo-metalico" gutterBottom sx={{ fontSize: '2.5rem !important', mb: 3 }}>Dashboard</Typography>
 
       {/* Stats Cards for Admins */}
       {(currentUser?.role === 'admin' || currentUser?.role === 'superadmin') && (

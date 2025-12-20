@@ -24,7 +24,7 @@ function MainLayout({ onLogout }) {
     <div className="console-sidebar">
       <div style={{ textAlign: 'center', marginBottom: '20px' }}>
         <Typography variant="h6" className="title-text" sx={{ fontWeight: 'bold', color: 'var(--console-text)' }}>
-          JURIS<br />CONSOLE
+          JurisconsultorIA
         </Typography>
       </div>
 
