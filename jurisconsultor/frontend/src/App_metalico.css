@@ -162,3 +162,28 @@
             transparent);
     animation: metal-scan 1.5s infinite;
 }
+
+.titulo-metalico {
+    position: relative;
+    display: inline-block;
+    font-size: 3.2rem;
+    font-weight: 800;
+    /* Color base metálico */
+    color: #e0e0e0;
+    background: linear-gradient(120deg,
+            #666 20%,
+            #fff 40%,
+            #fff 60%,
+            #666 80%);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    /* Animación del brillo */
+    animation: shine 5s linear infinite;
+}
+
+@keyframes shine {
+    to {
+        background-position: 200% center;
+    }
+}

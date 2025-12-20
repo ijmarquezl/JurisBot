@@ -14,6 +14,17 @@ export const theme = createTheme({
     shape: {
         borderRadius: 12,
     },
+    typography: {
+        fontFamily: '"Avenir", "Helvetica", "Arial", sans-serif',
+        h1: {
+            fontWeight: 800,
+            letterSpacing: '0.05em',
+            background: 'linear-gradient(to bottom, #ffffff 0%, #a1a1a1 50%, #6e6e6e 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            filter: 'drop-shadow(0px 2px 2px rgba(0,0,0,0.5))',
+        },
+    },
     components: {
         // BOTONES: Efecto de metal cepillado y 3D
         MuiButton: {
