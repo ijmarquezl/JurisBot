@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Typography, Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Button, TextField, Dialog, DialogActions, DialogContent, DialogTitle, Stack, CircularProgress, IconButton, MenuItem, Select, FormControl, InputLabel } from '@mui/material';
+import { Typography, Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Button, TextField, Dialog, DialogActions, DialogContent, DialogTitle, Stack, CircularProgress, IconButton, MenuItem, Select, FormControl, InputLabel, Grid, Card, CardContent } from '@mui/material';
 import { Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material'; // Import icons
 import apiClient from '../api';
 import logger from '../logger';
@@ -8,6 +8,9 @@ function AdminDashboard() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // Stats State
+  const [stats, setStats] = useState({ user_count: 0, project_count: 0, task_count: 0 });
 
   // Create User Dialog State
   const [openCreateDialog, setOpenCreateDialog] = useState(false);
@@ -34,9 +37,14 @@ function AdminDashboard() {
       const response = await apiClient.get('/admin/users');
       logger.log("Users received from API:", response.data); // Debug log
       setUsers(response.data);
+
+      // Fetch Stats as well
+      const statsResponse = await apiClient.get('/admin/stats');
+      setStats(statsResponse.data);
+
     } catch (err) {
-      setError('Error al cargar usuarios.');
-      logger.error('Error fetching users:', err);
+      setError('Error al cargar datos.');
+      logger.error('Error fetching admin data:', err);
     } finally {
       setLoading(false);
     }
@@ -157,6 +165,46 @@ function AdminDashboard() {
       <Typography variant="h5" gutterBottom>
         Panel de Administración
       </Typography>
+
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid item xs={12} sm={4}>
+          <Card>
+            <CardContent>
+              <Typography color="text.secondary" gutterBottom>
+                Usuarios
+              </Typography>
+              <Typography variant="h4">
+                {stats.user_count}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={4}>
+          <Card>
+            <CardContent>
+              <Typography color="text.secondary" gutterBottom>
+                Asuntos
+              </Typography>
+              <Typography variant="h4">
+                {stats.project_count}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={4}>
+          <Card>
+            <CardContent>
+              <Typography color="text.secondary" gutterBottom>
+                Tareas Totales
+              </Typography>
+              <Typography variant="h4">
+                {stats.task_count}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+
       <Button variant="contained" onClick={handleOpenCreateDialog} sx={{ mb: 2 }}>
         Crear Nuevo Usuario
       </Button>

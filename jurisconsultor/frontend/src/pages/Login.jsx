@@ -5,8 +5,8 @@ import { Container, TextField, Button, Typography, Box, Stack, CircularProgress 
 import { useAuth } from '../AuthContext'; // Import useAuth
 
 function Login() { // Removed onLogin prop
-  const [email, setEmail] = useState('superadmin@example.com'); // Default to superadmin for testing
-  const [password, setPassword] = useState('superadminpassword'); // Default password
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();

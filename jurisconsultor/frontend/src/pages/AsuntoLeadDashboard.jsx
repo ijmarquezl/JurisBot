@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
-    Typography, Box, Grid, Paper, List, ListItem, ListItemButton, ListItemText, 
-    CircularProgress, Divider, Button, Chip, Stack, TextField, Dialog, 
-    DialogActions, DialogContent, DialogTitle, IconButton, Select, MenuItem, FormControl, InputLabel,
-    Tabs, Tab, Card, CardContent
+import {
+  Typography, Box, Grid, Paper, List, ListItem, ListItemButton, ListItemText,
+  CircularProgress, Divider, Button, Chip, Stack, TextField, Dialog,
+  DialogActions, DialogContent, DialogTitle, IconButton, Select, MenuItem, FormControl, InputLabel,
+  Tabs, Tab, Card, CardContent
 } from '@mui/material';
 import { Add as AddIcon, PersonAdd as PersonAddIcon, PersonRemove as PersonRemoveIcon } from '@mui/icons-material';
 import apiClient from '../api';
@@ -71,7 +71,7 @@ function AsuntoLeadDashboard() {
 
   const fetchUsersInCompany = useCallback(async () => {
     try {
-      const response = await apiClient.get('/admin/users/company');
+      const response = await apiClient.get('/users/');
       setUsersInCompany(response.data);
       logger.log("Users in company loaded:", response.data); // ADDED LOG
     } catch (err) {
@@ -189,12 +189,24 @@ function AsuntoLeadDashboard() {
             ) : (
               <List>
                 {projects.map((project) => (
-                  <ListItemButton 
-                    key={project._id} 
+                  <ListItemButton
+                    key={project._id}
                     selected={selectedProject?._id === project._id}
                     onClick={() => handleProjectSelect(project)}
                   >
-                    <ListItemText primary={project.name} secondary={project.owner_email === currentUser?.email ? '(Propietario)' : ''} />
+                    <ListItemText
+                      primary={project.name}
+                      secondary={
+                        <>
+                          {project.owner_email === currentUser?.email ? '(Propietario) ' : ''}
+                          {project.due_date && (
+                            <Typography variant="body2" component="span" color={new Date(project.due_date) < new Date() ? 'error' : 'text.secondary'} sx={{ fontWeight: new Date(project.due_date) < new Date() ? 'bold' : 'normal' }}>
+                              {project.owner_email === currentUser?.email ? ' | ' : ''}Vence: {new Date(project.due_date).toLocaleDateString()}
+                            </Typography>
+                          )}
+                        </>
+                      }
+                    />
                   </ListItemButton>
                 ))}
               </List>
@@ -235,9 +247,18 @@ function AsuntoLeadDashboard() {
                           </Select>
                         </FormControl>
                       }>
-                        <ListItemText 
+                        <ListItemText
                           primary={task.title}
-                          secondary={task.description || 'Sin descripción'}
+                          secondary={
+                            <>
+                              {task.description || 'Sin descripción'}
+                              {task.due_date && (
+                                <Typography variant="body2" display="block" color={new Date(task.due_date) < new Date() ? 'error' : 'text.secondary'} sx={{ mt: 0.5, fontWeight: new Date(task.due_date) < new Date() ? 'bold' : 'normal' }}>
+                                  Vence: {new Date(task.due_date).toLocaleDateString()}
+                                </Typography>
+                              )}
+                            </>
+                          }
                         />
                         <Chip label={task.status} size="small" sx={{ ml: 2 }} />
                       </ListItem>
@@ -254,8 +275,8 @@ function AsuntoLeadDashboard() {
                   {selectedProject.members.map((memberEmail) => {
                     const memberUser = usersInCompany?.find(u => u.email === memberEmail); // ADDED OPTIONAL CHAINING
                     return (
-                      <ListItem 
-                        key={memberEmail} 
+                      <ListItem
+                        key={memberEmail}
                         secondaryAction={
                           <IconButton edge="end" aria-label="remove" onClick={() => handleRemoveMember(memberEmail)}>
                             <PersonRemoveIcon />

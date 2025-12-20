@@ -4,7 +4,7 @@ from typing import List
 from pymongo.database import Database
 from bson import ObjectId
 
-from models import UserCreate, UserInDB, UserUpdate, PyObjectId, CompanyCreate, CompanyInDB, UserResponse
+from models import UserCreate, UserInDB, UserUpdate, PyObjectId, CompanyCreate, CompanyInDB, UserResponse, LLMUsageLog
 from dependencies import get_db, get_super_admin_user
 from users import create_user, get_user
 
@@ -72,6 +72,16 @@ def delete_any_user(user_id: PyObjectId, db: Database = Depends(get_db)):
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="User not found.")
     return 
+
+# --- LLM Usage Statistics ---
+
+@router.get("/llm_usage", response_model=List[LLMUsageLog])
+def get_llm_usage(db: Database = Depends(get_db)):
+    """
+    Retrieves global LLM usage statistics (last 1000 records).
+    """
+    logs = list(db.llm_usage.find({}).sort("timestamp", -1).limit(1000))
+    return [LLMUsageLog(**log) for log in logs] 
 
 # --- Company (Tenant) Management ---
 

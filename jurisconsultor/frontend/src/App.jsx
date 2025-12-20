@@ -11,6 +11,7 @@ import { AuthProvider, useAuth } from './AuthContext';
 import { CustomThemeProvider, useMuiTheme } from './ThemeContext';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
+import GlobalStyles from '@mui/material/GlobalStyles';
 import logger from './logger';
 
 function AppContent() {
@@ -30,10 +31,11 @@ function AppContent() {
 
   return (
     <ThemeProvider theme={theme}>
-      <CssBaseline /> {/* Normalize styles and apply background color */}
+      <CssBaseline /> {/* Normalize styles and apply background color to body */}
+      <GlobalStyles styles={{ html: { backgroundColor: theme.palette.background.default } }} /> {/* Apply background to html to fix overscroll/bottom gap */}
       <Routes>
         <Route path="/" element={!user ? <Login /> : <Navigate to="/dashboard" />} />
-        
+
         <Route element={user ? <MainLayout onLogout={logout} /> : <Navigate to="/" />}>
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="admin" element={<AdminDashboard />} />

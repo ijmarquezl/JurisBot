@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 # This module defines the core logic for the tools the AI agent can use.
 
 API_BASE_URL = os.getenv("BACKEND_API_URL", "http://jurisbot-project-manager-mcp:8000")
-TEMPLATE_DIR = "../formatos/"
+BASE_DOCS_PATH = "/docs" # Mounted volume path
 GENERATED_DOCS_PATH = "../documentos_generados/"
 
 _auth_token = None
@@ -45,7 +45,9 @@ def _get_headers() -> dict:
 def get_template_placeholders(template_name: str) -> str:
     """Reads a .docx template and extracts its placeholders in a robust manner."""
     try:
-        template_path = os.path.join(TEMPLATE_DIR, template_name)
+        if not _tenant_id:
+             return json.dumps({"error": "Tenant ID not set."})
+        template_path = os.path.join(BASE_DOCS_PATH, _tenant_id, "templates", template_name)
         if not os.path.exists(template_path):
             return json.dumps({"error": f"Template '{template_name}' not found."})
         
@@ -97,7 +99,9 @@ def fill_template_and_save_document(template_name: str, document_name: str, cont
     if not document_name or not context:
         return json.dumps({"error": "Called with missing document_name or context."})
     try:
-        template_path = os.path.join(TEMPLATE_DIR, template_name)
+        if not _tenant_id:
+             return json.dumps({"error": "Tenant ID not set."})
+        template_path = os.path.join(BASE_DOCS_PATH, _tenant_id, "templates", template_name)
         if not os.path.exists(template_path):
             return json.dumps({"error": f"Template '{template_name}' not found."})
 

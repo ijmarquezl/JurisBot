@@ -37,3 +37,21 @@
 
 ** V 0.0.6 **
 - Agregar nuevas funcionalidades al backoffice para que un usuario superadminstrador pueda tener acceso a todos los elementos del sistema sin importar la compañía o equipo, y que tenga permisos para realizar todas las acciones.
+- Integrar una vista del log al backoffice para que el usuario pueda consultar los logs de la aplicación.
+- Integrar una vista de la API de OpenAI al backoffice para que el usuario pueda consultar los logs de la aplicación.
+- Integrar una vista de Documentos generados en el backoffice para mejor gestión del Superadiminstrador.
+- Integrar una vista de los proyectos y tareas en el backoffice para mejor gestión del Superadiminstrador.
+- Integrar una vista de los usuarios en el backoffice para mejor gestión del Superadiminstrador.
+- Integrar un botón para cambio de tema (claro y oscuro) para mejor experiencia del usuario.
+
+
+** V 0.0.7 **
+- Agregar al sistema la capacidad de manejar fechas en tareas y asuntos, de forma que se pueda tener un control y avisos antes de que las fechas se cumplan.
+- Integrar Langsmith para poder monitorear y optimizar el rendimiento del sistema con respecto a las llamadas a la API de OpenAI.
+- Agregar al dashboard de administrador un control de cantidad de asuntos, y tareas, además de la cantidad de usuarios.
+
+** V 0.1.0 (RELEASE) **
+- Consolidación de todas las funcionalidades anteriores.
+- Corrección de visualización de estadísticas en Dashboard de Administrador.
+- Verificación de flujos completos de Backoffice y Superadmin.
+- Listo para despliegue inicial.

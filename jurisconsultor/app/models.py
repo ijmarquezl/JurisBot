@@ -93,6 +93,7 @@ class ProjectBase(BaseModel):
     name: str
     description: Optional[str] = None
     is_archived: bool = False
+    due_date: Optional[datetime] = None
 
 class ProjectCreate(ProjectBase):
     pass
@@ -110,6 +111,7 @@ class TaskBase(BaseModel):
     title: str
     description: Optional[str] = None
     status: str = "todo"
+    due_date: Optional[datetime] = None
 
 class TaskCreate(TaskBase):
     project_id: PyObjectId
@@ -119,6 +121,7 @@ class TaskUpdate(BaseModel):
     description: Optional[str] = None
     status: Optional[str] = None
     assignee_email: Optional[str] = None
+    due_date: Optional[datetime] = None
 
 class TaskInDB(TaskBase):
     model_config = model_config
@@ -193,3 +196,17 @@ class ScrapingSourceInDB(ScrapingSourceBase):
     last_known_hash: Optional[str] = None
     status: str = "pending" # e.g., pending, success, failed
     error_message: Optional[str] = None
+
+# --- LLM Usage Models ---
+class LLMUsageLog(BaseModel):
+    model_config = model_config
+    id: PyObjectId = Field(alias='_id', default_factory=PyObjectId)
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    tenant_id: str
+    user_email: str
+    model: str
+    input_tokens: int
+    output_tokens: int
+    total_tokens: int
+    cost_usd: float = 0.0
+

@@ -11,19 +11,19 @@ import logger from '../logger';
 import { useAuth } from '../AuthContext';
 
 import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
 } from '@dnd-kit/core';
 import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  useSortable,
-  verticalListSortingStrategy,
+    arrayMove,
+    SortableContext,
+    sortableKeyboardCoordinates,
+    useSortable,
+    verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
@@ -37,37 +37,37 @@ const cellStyle = {
 
 // --- Draggable Item Wrapper ---
 function SortableItem({ id, children }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-  } = useSortable({ id });
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+    } = useSortable({ id });
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    position: 'relative',
-  };
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        position: 'relative',
+    };
 
-  return (
-    <div ref={setNodeRef} style={style} {...attributes}>
-      {children}
-      <IconButton 
-        {...listeners} 
-        sx={{
-          position: 'absolute',
-          top: 8,
-          right: 8,
-          cursor: 'grab',
-          color: 'text.secondary'
-        }}
-      >
-        <DragHandleIcon />
-      </IconButton>
-    </div>
-  );
+    return (
+        <div ref={setNodeRef} style={style} {...attributes}>
+            {children}
+            <IconButton
+                {...listeners}
+                sx={{
+                    position: 'absolute',
+                    top: 8,
+                    right: 8,
+                    cursor: 'grab',
+                    color: 'text.secondary'
+                }}
+            >
+                <DragHandleIcon />
+            </IconButton>
+        </div>
+    );
 }
 
 
@@ -177,17 +177,17 @@ function CompanyManager({ companies, fetchCompanies }) {
                     <Table size="small" sx={{ tableLayout: 'fixed' }}>
                         <TableHead>
                             <TableRow>
-                                <TableCell sx={{...cellStyle, maxWidth: 200}}>Nombre de la Empresa</TableCell>
+                                <TableCell sx={{ ...cellStyle, maxWidth: 200 }}>Nombre de la Empresa</TableCell>
                                 <TableCell sx={cellStyle}>ID</TableCell>
-                                <TableCell sx={{...cellStyle, maxWidth: 100}} align="right">Acciones</TableCell>
+                                <TableCell sx={{ ...cellStyle, maxWidth: 100 }} align="right">Acciones</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
                             {companies.map((company) => (
                                 <TableRow key={company.id}>
-                                    <TableCell sx={{...cellStyle, maxWidth: 200}} title={company.name}>{company.name}</TableCell>
+                                    <TableCell sx={{ ...cellStyle, maxWidth: 200 }} title={company.name}>{company.name}</TableCell>
                                     <TableCell sx={cellStyle} title={company.id}>{company.id}</TableCell>
-                                    <TableCell sx={{...cellStyle, maxWidth: 100}} align="right">
+                                    <TableCell sx={{ ...cellStyle, maxWidth: 100 }} align="right">
                                         <IconButton size="small" color="error" onClick={() => handleOpenDelete(company)}>
                                             <DeleteIcon />
                                         </IconButton>
@@ -226,7 +226,7 @@ function UserManager({ users, companies, fetchUsers }) {
         setError('');
         setOpenDialog(true);
     };
-    
+
     const handleCloseDialog = () => setOpenDialog(false);
 
     const handleOpenDelete = (user) => {
@@ -292,7 +292,7 @@ function UserManager({ users, companies, fetchUsers }) {
                                 <TableCell sx={cellStyle}>Nombre</TableCell>
                                 <TableCell sx={cellStyle}>Rol</TableCell>
                                 <TableCell sx={cellStyle}>Empresa ID</TableCell>
-                                <TableCell sx={{...cellStyle, maxWidth: 100}} align="right">Acciones</TableCell>
+                                <TableCell sx={{ ...cellStyle, maxWidth: 100 }} align="right">Acciones</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
@@ -302,7 +302,7 @@ function UserManager({ users, companies, fetchUsers }) {
                                     <TableCell sx={cellStyle} title={user.full_name}>{user.full_name}</TableCell>
                                     <TableCell sx={cellStyle}>{user.role}</TableCell>
                                     <TableCell sx={cellStyle} title={user.company_id}>{user.company_id || 'N/A'}</TableCell>
-                                    <TableCell sx={{...cellStyle, maxWidth: 100}} align="right">
+                                    <TableCell sx={{ ...cellStyle, maxWidth: 100 }} align="right">
                                         <IconButton size="small" sx={{ mr: 1 }} onClick={() => handleOpenEdit(user)}><EditIcon /></IconButton>
                                         <IconButton size="small" color="error" onClick={() => handleOpenDelete(user)}><DeleteIcon /></IconButton>
                                     </TableCell>
@@ -312,8 +312,8 @@ function UserManager({ users, companies, fetchUsers }) {
                     </Table>
                 </TableContainer>
             </CardContent>
-            <Dialog open={openDialog} onClose={handleCloseDialog}><DialogTitle>{isEditing ? 'Editar Usuario' : 'Crear Nuevo Usuario'}</DialogTitle><DialogContent><Stack spacing={2} sx={{mt: 1}}><TextField label="Email" name="email" value={currentUser?.email || ''} onChange={handleChange} fullWidth disabled={isEditing} /><TextField label="Nombre Completo" name="full_name" value={currentUser?.full_name || ''} onChange={handleChange} fullWidth /><TextField label="Contraseña" name="password" type="password" placeholder={isEditing ? 'Dejar en blanco para no cambiar' : ''} value={currentUser?.password || ''} onChange={handleChange} fullWidth /><FormControl fullWidth><InputLabel>Rol</InputLabel><Select label="Rol" name="role" value={currentUser?.role || 'member'} onChange={handleChange}><MenuItem value="superadmin">Superadmin</MenuItem><MenuItem value="admin">Admin</MenuItem><MenuItem value="lead">Líder de Proyecto</MenuItem><MenuItem value="member">Miembro</MenuItem></Select></FormControl><FormControl fullWidth><InputLabel>Empresa</InputLabel><Select label="Empresa" name="company_id" value={currentUser?.company_id || ''} onChange={handleChange}><MenuItem value=""><em>Ninguna</em></MenuItem>{companies.map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}</Select></FormControl></Stack>{error && <Typography color="error" sx={{mt: 2}}>{error}</Typography>}</DialogContent><DialogActions><Button onClick={handleCloseDialog}>Cancelar</Button><Button onClick={handleSubmit} disabled={loading}>{loading ? <CircularProgress size={24} /> : (isEditing ? 'Guardar Cambios' : 'Crear')}</Button></DialogActions></Dialog>
-            <Dialog open={openDelete} onClose={handleCloseDelete}><DialogTitle>Confirmar Eliminación</DialogTitle><DialogContent><Typography>¿Estás seguro de que quieres eliminar al usuario <strong>{currentUser?.email}</strong>?</Typography>{error && <Typography color="error" sx={{mt: 2}}>{error}</Typography>}</DialogContent><DialogActions><Button onClick={handleCloseDelete}>Cancelar</Button><Button onClick={handleDelete} color="error" disabled={loading}>{loading ? <CircularProgress size={24} /> : 'Eliminar'}</Button></DialogActions></Dialog>
+            <Dialog open={openDialog} onClose={handleCloseDialog}><DialogTitle>{isEditing ? 'Editar Usuario' : 'Crear Nuevo Usuario'}</DialogTitle><DialogContent><Stack spacing={2} sx={{ mt: 1 }}><TextField label="Email" name="email" value={currentUser?.email || ''} onChange={handleChange} fullWidth disabled={isEditing} /><TextField label="Nombre Completo" name="full_name" value={currentUser?.full_name || ''} onChange={handleChange} fullWidth /><TextField label="Contraseña" name="password" type="password" placeholder={isEditing ? 'Dejar en blanco para no cambiar' : ''} value={currentUser?.password || ''} onChange={handleChange} fullWidth /><FormControl fullWidth><InputLabel>Rol</InputLabel><Select label="Rol" name="role" value={currentUser?.role || 'member'} onChange={handleChange}><MenuItem value="superadmin">Superadmin</MenuItem><MenuItem value="admin">Admin</MenuItem><MenuItem value="lead">Líder de Proyecto</MenuItem><MenuItem value="member">Miembro</MenuItem></Select></FormControl><FormControl fullWidth><InputLabel>Empresa</InputLabel><Select label="Empresa" name="company_id" value={currentUser?.company_id || ''} onChange={handleChange}><MenuItem value=""><em>Ninguna</em></MenuItem>{companies.map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}</Select></FormControl></Stack>{error && <Typography color="error" sx={{ mt: 2 }}>{error}</Typography>}</DialogContent><DialogActions><Button onClick={handleCloseDialog}>Cancelar</Button><Button onClick={handleSubmit} disabled={loading}>{loading ? <CircularProgress size={24} /> : (isEditing ? 'Guardar Cambios' : 'Crear')}</Button></DialogActions></Dialog>
+            <Dialog open={openDelete} onClose={handleCloseDelete}><DialogTitle>Confirmar Eliminación</DialogTitle><DialogContent><Typography>¿Estás seguro de que quieres eliminar al usuario <strong>{currentUser?.email}</strong>?</Typography>{error && <Typography color="error" sx={{ mt: 2 }}>{error}</Typography>}</DialogContent><DialogActions><Button onClick={handleCloseDelete}>Cancelar</Button><Button onClick={handleDelete} color="error" disabled={loading}>{loading ? <CircularProgress size={24} /> : 'Eliminar'}</Button></DialogActions></Dialog>
         </Card>
     );
 }
@@ -333,7 +333,7 @@ function ProjectManager({ projects, fetchProjects }) {
         setError('');
         setOpenDialog(true);
     };
-    
+
     const handleCloseDialog = () => setOpenDialog(false);
 
     const handleOpenDelete = (project) => {
@@ -347,6 +347,17 @@ function ProjectManager({ projects, fetchProjects }) {
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
         setCurrentProject({ ...currentProject, [name]: type === 'checkbox' ? checked : value });
+    };
+
+    // Helper to format date for input type="date"
+    const formatDateForInput = (dateString) => {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        return date.toISOString().split('T')[0];
+    };
+
+    const handleDateChange = (e) => {
+        setCurrentProject({ ...currentProject, due_date: e.target.value });
     };
 
     const handleSubmit = async () => {
@@ -393,19 +404,31 @@ function ProjectManager({ projects, fetchProjects }) {
                             <TableRow>
                                 <TableCell sx={{ ...cellStyle, maxWidth: 200 }}>Nombre del Asunto</TableCell>
                                 <TableCell sx={cellStyle}>Propietario</TableCell>
+                                <TableCell sx={cellStyle}>Vencimiento</TableCell>
                                 <TableCell sx={cellStyle}>Empresa ID</TableCell>
                                 <TableCell sx={cellStyle}>Archivado</TableCell>
-                                <TableCell sx={{...cellStyle, maxWidth: 100}} align="right">Acciones</TableCell>
-                            </TableRow>
+                                <TableCell sx={{ ...cellStyle, maxWidth: 100 }} align="right">Acciones</TableCell>
+                            </TableRow>>
                         </TableHead>
                         <TableBody>
                             {projects.map((project) => (
                                 <TableRow key={project.id}>
                                     <TableCell sx={{ ...cellStyle, maxWidth: 200 }} title={project.name}>{project.name}</TableCell>
                                     <TableCell sx={cellStyle} title={project.owner_email}>{project.owner_email}</TableCell>
+                                    <TableCell sx={cellStyle}>
+                                        {project.due_date ? (
+                                            <Typography
+                                                variant="body2"
+                                                color={new Date(project.due_date) < new Date() ? 'error' : 'text.primary'}
+                                                sx={{ fontWeight: new Date(project.due_date) < new Date() ? 'bold' : 'normal' }}
+                                            >
+                                                {new Date(project.due_date).toLocaleDateString()}
+                                            </Typography>
+                                        ) : 'N/A'}
+                                    </TableCell>
                                     <TableCell sx={cellStyle} title={project.company_id}>{project.company_id}</TableCell>
-                                    <TableCell sx={cellStyle}>{project.is_archived ? 'Sí' : 'No'}</TableCell>
-                                    <TableCell sx={{...cellStyle, maxWidth: 100}} align="right">
+                                    <TableCell sx={cellStyle}>{project.is_archived ? 'Sí' : 'No'}</TableCell>>
+                                    <TableCell sx={{ ...cellStyle, maxWidth: 100 }} align="right">
                                         <IconButton size="small" sx={{ mr: 1 }} onClick={() => handleOpenEdit(project)}><EditIcon /></IconButton>
                                         <IconButton size="small" color="error" onClick={() => handleOpenDelete(project)}><DeleteIcon /></IconButton>
                                     </TableCell>
@@ -415,8 +438,8 @@ function ProjectManager({ projects, fetchProjects }) {
                     </Table>
                 </TableContainer>
             </CardContent>
-            <Dialog open={openDialog} onClose={handleCloseDialog}><DialogTitle>{isEditing ? 'Editar Proyecto' : 'Crear Nuevo Proyecto'}</DialogTitle><DialogContent><Stack spacing={2} sx={{mt: 1}}><TextField label="Nombre" name="name" value={currentProject?.name || ''} onChange={handleChange} fullWidth disabled={isEditing} /><TextField label="Descripción" name="description" value={currentProject?.description || ''} onChange={handleChange} fullWidth disabled={isEditing} /><FormControlLabel control={<Checkbox checked={currentProject?.is_archived || false} onChange={handleChange} name="is_archived" />} label="Archivado" /></Stack>{error && <Typography color="error" sx={{mt: 2}}>{error}</Typography>}</DialogContent><DialogActions><Button onClick={handleCloseDialog}>Cancelar</Button><Button onClick={handleSubmit} disabled={loading}>{loading ? <CircularProgress size={24} /> : 'Guardar Cambios'}</Button></DialogActions></Dialog>
-            <Dialog open={openDelete} onClose={handleCloseDelete}><DialogTitle>Confirmar Eliminación</DialogTitle><DialogContent><Typography>¿Estás seguro de que quieres eliminar el proyecto <strong>{currentProject?.name}</strong>? Esta acción eliminará también todas las tareas asociadas.</Typography>{error && <Typography color="error" sx={{mt: 2}}>{error}</Typography>}</DialogContent><DialogActions><Button onClick={handleCloseDelete}>Cancelar</Button><Button onClick={handleDelete} color="error" disabled={loading}>{loading ? <CircularProgress size={24} /> : 'Eliminar'}</Button></DialogActions></Dialog>
+            <Dialog open={openDialog} onClose={handleCloseDialog}><DialogTitle>{isEditing ? 'Editar Proyecto' : 'Crear Nuevo Proyecto'}</DialogTitle><DialogContent><Stack spacing={2} sx={{ mt: 1 }}><TextField label="Nombre" name="name" value={currentProject?.name || ''} onChange={handleChange} fullWidth disabled={isEditing} /><TextField label="Descripción" name="description" value={currentProject?.description || ''} onChange={handleChange} fullWidth disabled={isEditing} /><TextField label="Fecha de Vencimiento" type="date" InputLabelProps={{ shrink: true }} value={formatDateForInput(currentProject?.due_date)} onChange={handleDateChange} fullWidth /><FormControlLabel control={<Checkbox checked={currentProject?.is_archived || false} onChange={handleChange} name="is_archived" />} label="Archivado" /></Stack>{error && <Typography color="error" sx={{ mt: 2 }}>{error}</Typography>}</DialogContent><DialogActions><Button onClick={handleCloseDialog}>Cancelar</Button><Button onClick={handleSubmit} disabled={loading}>{loading ? <CircularProgress size={24} /> : 'Guardar Cambios'}</Button></DialogActions></Dialog>
+            <Dialog open={openDelete} onClose={handleCloseDelete}><DialogTitle>Confirmar Eliminación</DialogTitle><DialogContent><Typography>¿Estás seguro de que quieres eliminar el proyecto <strong>{currentProject?.name}</strong>? Esta acción eliminará también todas las tareas asociadas.</Typography>{error && <Typography color="error" sx={{ mt: 2 }}>{error}</Typography>}</DialogContent><DialogActions><Button onClick={handleCloseDelete}>Cancelar</Button><Button onClick={handleDelete} color="error" disabled={loading}>{loading ? <CircularProgress size={24} /> : 'Eliminar'}</Button></DialogActions></Dialog>
         </Card>
     );
 }
@@ -475,7 +498,7 @@ function DocumentManager({ documents, fetchDocuments }) {
                                 <TableCell sx={cellStyle}>Propietario</TableCell>
                                 <TableCell sx={cellStyle}>Asunto ID</TableCell>
                                 <TableCell sx={cellStyle}>Archivado</TableCell>
-                                <TableCell sx={{...cellStyle, maxWidth: 100}} align="right">Acciones</TableCell>
+                                <TableCell sx={{ ...cellStyle, maxWidth: 100 }} align="right">Acciones</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
@@ -487,7 +510,7 @@ function DocumentManager({ documents, fetchDocuments }) {
                                     <TableCell sx={cellStyle}>
                                         <Checkbox checked={doc.is_archived} onChange={() => handleArchiveToggle(doc)} disabled={loading} />
                                     </TableCell>
-                                    <TableCell sx={{...cellStyle, maxWidth: 100}} align="right">
+                                    <TableCell sx={{ ...cellStyle, maxWidth: 100 }} align="right">
                                         <IconButton size="small" color="error" onClick={() => handleOpenDelete(doc)}><DeleteIcon /></IconButton>
                                     </TableCell>
                                 </TableRow>
@@ -496,7 +519,7 @@ function DocumentManager({ documents, fetchDocuments }) {
                     </Table>
                 </TableContainer>
             </CardContent>
-            <Dialog open={openDelete} onClose={handleCloseDelete}><DialogTitle>Confirmar Eliminación</DialogTitle><DialogContent><Typography>¿Estás seguro de que quieres eliminar el documento <strong>{currentDocument?.file_name}</strong>?</Typography>{error && <Typography color="error" sx={{mt: 2}}>{error}</Typography>}</DialogContent><DialogActions><Button onClick={handleCloseDelete}>Cancelar</Button><Button onClick={handleDelete} color="error" disabled={loading}>{loading ? <CircularProgress size={24} /> : 'Eliminar'}</Button></DialogActions></Dialog>
+            <Dialog open={openDelete} onClose={handleCloseDelete}><DialogTitle>Confirmar Eliminación</DialogTitle><DialogContent><Typography>¿Estás seguro de que quieres eliminar el documento <strong>{currentDocument?.file_name}</strong>?</Typography>{error && <Typography color="error" sx={{ mt: 2 }}>{error}</Typography>}</DialogContent><DialogActions><Button onClick={handleCloseDelete}>Cancelar</Button><Button onClick={handleDelete} color="error" disabled={loading}>{loading ? <CircularProgress size={24} /> : 'Eliminar'}</Button></DialogActions></Dialog>
         </Card>
     );
 }
@@ -577,6 +600,97 @@ function LogViewer() {
 }
 
 
+// --- LLM Usage Dashboard Component ---
+function LLMUsageDashboard() {
+    const [usageLogs, setUsageLogs] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+
+    const fetchUsage = async () => {
+        setLoading(true);
+        setError('');
+        try {
+            const response = await apiClient.get('/superadmin/llm_usage');
+            setUsageLogs(response.data);
+        } catch (err) {
+            setError(err.response?.data?.detail || 'Error al cargar estadísticas de uso.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchUsage();
+    }, []);
+
+    const totalCost = usageLogs.reduce((acc, log) => acc + (log.cost_usd || 0), 0);
+    const totalTokens = usageLogs.reduce((acc, log) => acc + (log.total_tokens || 0), 0);
+
+    return (
+        <Card>
+            <CardContent>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="h6">Uso de API OpenAI / LLM</Typography>
+                    <IconButton onClick={fetchUsage} disabled={loading}><RefreshIcon /></IconButton>
+                </Box>
+
+                <Grid container spacing={2} sx={{ mb: 2 }}>
+                    <Grid item xs={6}>
+                        <Card variant="outlined">
+                            <CardContent>
+                                <Typography color="text.secondary" gutterBottom>Costo Total (Est.)</Typography>
+                                <Typography variant="h5">${totalCost.toFixed(4)} USD</Typography>
+                            </CardContent>
+                        </Card>
+                    </Grid>
+                    <Grid item xs={6}>
+                        <Card variant="outlined">
+                            <CardContent>
+                                <Typography color="text.secondary" gutterBottom>Tokens Totales</Typography>
+                                <Typography variant="h5">{totalTokens.toLocaleString()}</Typography>
+                            </CardContent>
+                        </Card>
+                    </Grid>
+                </Grid>
+
+                {error && <Typography color="error" sx={{ mb: 2 }}>{error}</Typography>}
+
+                <TableContainer sx={{ maxHeight: 300, overflow: 'auto' }}>
+                    <Table size="small" stickyHeader>
+                        <TableHead>
+                            <TableRow>
+                                <TableCell>Fecha</TableCell>
+                                <TableCell>Modelo</TableCell>
+                                <TableCell>Usuario</TableCell>
+                                <TableCell align="right">Tokens</TableCell>
+                                <TableCell align="right">Costo</TableCell>
+                            </TableRow>
+                        </TableHead>
+                        <TableBody>
+                            {loading ? (
+                                <TableRow><TableCell colSpan={5} align="center"><CircularProgress size={20} /></TableCell></TableRow>
+                            ) : usageLogs.length === 0 ? (
+                                <TableRow><TableCell colSpan={5} align="center">No hay registros de uso.</TableCell></TableRow>
+                            ) : (
+                                usageLogs.map((log) => (
+                                    <TableRow key={log.id}>
+                                        <TableCell>{new Date(log.timestamp).toLocaleString()}</TableCell>
+                                        <TableCell>{log.model}</TableCell>
+                                        <TableCell title={log.user_email} sx={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{log.user_email}</TableCell>
+                                        <TableCell align="right">{log.total_tokens}</TableCell>
+                                        <TableCell align="right">${(log.cost_usd || 0).toFixed(5)}</TableCell>
+                                    </TableRow>
+                                ))
+                            )}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
+            </CardContent>
+        </Card>
+    );
+}
+
+
 // --- Main Backoffice Dashboard Component ---
 function BackofficeDashboard() {
     const [users, setUsers] = useState([]);
@@ -590,7 +704,8 @@ function BackofficeDashboard() {
 
     const componentMap = {
         reporting: { id: 'reporting', Component: ReportingDashboard, props: { users, companies, projects, documents }, gridProps: { xs: 12 } },
-        logs: { id: 'logs', Component: LogViewer, props: {}, gridProps: { xs: 12 } },
+        llm_usage: { id: 'llm_usage', Component: LLMUsageDashboard, props: {}, gridProps: { xs: 12, md: 6 } },
+        logs: { id: 'logs', Component: LogViewer, props: {}, gridProps: { xs: 12, md: 6 } },
         sources: { id: 'sources', Component: () => (<Card><CardContent><Typography variant="h6" gutterBottom>Gestión de Fuentes Públicas</Typography><Typography variant="body2" sx={{ mb: 2 }}>Administrar las fuentes de datos públicas utilizadas por el sistema (leyes, códigos, etc.).</Typography><Button variant="contained" onClick={() => navigate('/sources')}>Ir a Fuentes</Button></CardContent></Card>), props: {}, gridProps: { xs: 12 } },
         companies: { id: 'companies', Component: CompanyManager, props: { companies, fetchCompanies: () => fetchData() }, gridProps: { xs: 12, lg: 6 } },
         users: { id: 'users', Component: UserManager, props: { users, companies, fetchUsers: () => fetchData() }, gridProps: { xs: 12, lg: 6 } },
@@ -598,8 +713,8 @@ function BackofficeDashboard() {
         documents: { id: 'documents', Component: DocumentManager, props: { documents, fetchDocuments: () => fetchData() }, gridProps: { xs: 12 } },
     };
 
-    const defaultOrder = ['reporting', 'logs', 'sources', 'companies', 'users', 'projects', 'documents'];
-    
+    const defaultOrder = ['reporting', 'llm_usage', 'logs', 'sources', 'companies', 'users', 'projects', 'documents'];
+
     const [items, setItems] = useState(() => {
         try {
             const savedOrder = localStorage.getItem('dashboardOrder');
@@ -638,7 +753,7 @@ function BackofficeDashboard() {
                 apiClient.get('/projects/?include_archived=true'),
                 apiClient.get('/documents/?include_archived=true'),
             ]);
-            
+
             const mapId = (item) => ({ ...item, id: item._id });
             setUsers(usersRes.data.map(mapId));
             setCompanies(companiesRes.data.map(mapId));
@@ -675,7 +790,7 @@ function BackofficeDashboard() {
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 Arrastra las tarjetas desde el icono <DragHandleIcon fontSize="small" sx={{ verticalAlign: 'middle' }} /> para reordenar el dashboard. El orden se guardará en tu navegador.
             </Typography>
-            
+
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                 <SortableContext items={items} strategy={verticalListSortingStrategy}>
                     <Grid container spacing={4}>

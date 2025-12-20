@@ -32,24 +32,8 @@ class GenerateFromFormRequest(BaseModel):
 
 # --- Endpoints ---
 
-@router.get("/templates", response_model=List[str])
-def list_templates():
-    """Lists all available .docx templates from the formats directory."""
-    try:
-        files = os.listdir(TEMPLATE_DIR)
-        docx_files = [f for f in files if f.endswith('.docx')]
-        return docx_files
-    except FileNotFoundError:
-        return []
-
-@router.get("/templates/{template_name}/placeholders", response_model=List[str])
-def get_placeholders_for_template(template_name: str):
-    """Returns the list of placeholders for a given template name."""
-    result_str = legacy_tools.get_template_placeholders(template_name)
-    result = json.loads(result_str)
-    if "error" in result:
-        raise HTTPException(status_code=404, detail=result["error"])
-    return result
+# Sub-endpoints moved to templates.py
+# list_templates and get_placeholders deleted from here.
 
 @router.post("/generate_from_form", response_model=GeneratedDocumentInDB)
 def generate_document_from_form(
@@ -71,6 +55,12 @@ def generate_document_from_form(
         # Assign the RAG findings to the most relevant placeholder
         context["articulos_aplicables"] = legal_articles
         logger.info(f"Context after RAG: {context}")
+
+    # Ensure tenant context is set for the tool
+    if current_user.company_id:
+        legacy_tools.set_tenant_id(str(current_user.company_id))
+    else:
+        logger.warning(f"User {current_user.email} has no company_id during document generation.")
 
     # 2. Call the tool to fill the template and save the document file
     result_str = legacy_tools.fill_template_and_save_document(

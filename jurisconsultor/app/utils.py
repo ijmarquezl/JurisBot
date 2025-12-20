@@ -11,7 +11,9 @@ from psycopg2.extras import execute_values
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError
 from dotenv import load_dotenv
+from dotenv import load_dotenv
 from tenacity import retry, wait_fixed, stop_after_attempt, before_log, after_log, retry_if_exception_type
+from db_manager import log_llm_usage
 
 # Setup logger for this module
 logger = logging.getLogger(__name__)
@@ -69,7 +71,9 @@ def generate_embedding(text: str):
 LLM_URL = os.getenv("LLM_URL")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
-def call_llm(prompt: str, json_format: bool = False) -> str:
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
+def call_llm(prompt: str, json_format: bool = False, user_context: Dict[str, str] = None) -> str:
     """Generic function to call the LLM (Groq compatible)."""
     if not LLM_URL or not GROQ_API_KEY:
         raise ValueError("LLM_URL and GROQ_API_KEY environment variables must be set.")
@@ -99,7 +103,27 @@ def call_llm(prompt: str, json_format: bool = False) -> str:
 
         response = requests.post(full_url, headers=headers, json=payload)
         response.raise_for_status()
-        return response.json()["choices"][0]["message"]["content"]
+        data = response.json()
+        
+        # Log usage if user context is provided and usage stats are available
+        if user_context and 'usage' in data:
+            usage = data['usage']
+            # Estimate cost (very rough approximation for Llama 3 on Groq - often free or very cheap, using a placeholder)
+            # Input: ~$0.05 / 1M tokens, Output: ~$0.08 / 1M tokens (Example rates)
+            input_toks = usage.get('prompt_tokens', 0)
+            output_toks = usage.get('completion_tokens', 0)
+            cost = (input_toks * 0.05 / 1_000_000) + (output_toks * 0.08 / 1_000_000)
+            
+            log_llm_usage(
+                tenant_id=user_context.get('tenant_id', 'unknown'),
+                user_email=user_context.get('user_email', 'system'),
+                model=data.get('model', 'llama3-8b-8192'),
+                input_tokens=input_toks,
+                output_tokens=output_toks,
+                cost=cost
+            )
+
+        return data["choices"][0]["message"]["content"]
     except requests.exceptions.RequestException as e:
         logger.error(f"An error occurred while querying the LLM: {e}")
         return f"Error: No se pudo obtener una respuesta del modelo de lenguaje. {e}"
@@ -156,7 +180,7 @@ def find_relevant_documents(query_embedding, top_k=3, query_text: str = None):
         logger.error(f"An error occurred during document retrieval: {e}")
         return []
 
-def answer_with_rag(question: str) -> str:
+def answer_with_rag(question: str, user_context: Dict[str, str] = None) -> str:
     """Answers a question using the RAG pipeline with HyDE and keyword extraction."""
     logger.info(f"---Invoking RAG for: {question}---")
     try:
@@ -164,7 +188,7 @@ def answer_with_rag(question: str) -> str:
         hyde_prompt = f"""Por favor, escribe un fragmento de un documento legal que responda a la siguiente pregunta. No es necesario que sea legalmente preciso, solo que contenga el tipo de lenguaje y terminología que se encontraría en un texto legal real.
         Pregunta: {question}
         Documento Hipotético:"""
-        hypothetical_document = call_llm(hyde_prompt)
+        hypothetical_document = call_llm(hyde_prompt, user_context=user_context)
         logger.debug(f"Generated hypothetical document for HyDE: {hypothetical_document}")
         question_embedding = generate_embedding(hypothetical_document)
 
@@ -172,7 +196,7 @@ def answer_with_rag(question: str) -> str:
         keyword_prompt = f"""Extrae las 3-5 palabras clave más importantes de la siguiente pregunta para una búsqueda en una base de datos legal. Devuelve solo las palabras clave separadas por espacios.
         Pregunta: {question}
         Palabras Clave:"""
-        keywords = call_llm(keyword_prompt)
+        keywords = call_llm(keyword_prompt, user_context=user_context)
         logger.info(f"Extracted keywords for search: {keywords}")
 
         # 3. Find relevant documents using the hybrid approach
@@ -197,7 +221,7 @@ def answer_with_rag(question: str) -> str:
         
         prompt = rag_prompt_template.format(context=context, question=question)
         
-        return call_llm(prompt)
+        return call_llm(prompt, user_context=user_context)
     except Exception as e:
         logger.error(f"Error executing RAG search: {e}")
         return f"Error executing RAG search: {e}"

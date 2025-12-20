@@ -22,7 +22,7 @@ from models import UserCreate, UserInDB, Token, TokenData, UserBase, UserRespons
 from security import create_access_token, create_refresh_token, verify_password, verify_token
 from users import create_user, get_user
 from utils import get_mongo_client
-from routers import projects, tasks, admin, documents, sources, superadmin, scraper
+from routers import projects, tasks, admin, documents, sources, superadmin, scraper, templates, users
 from dependencies import get_db, get_current_user, oauth2_scheme
 
 from db_manager import close_db_connection
@@ -135,6 +135,8 @@ app.include_router(documents.router, prefix="/api")
 app.include_router(sources.router, prefix="/api")
 app.include_router(superadmin.router, prefix="/api")
 app.include_router(scraper.router, prefix="/api")
+app.include_router(templates.router, prefix="/api")
+app.include_router(users.router, prefix="/api")
 
 class AskRequest(BaseModel):
     question: str

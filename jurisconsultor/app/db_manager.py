@@ -37,3 +37,27 @@ def get_tenant_db(mongo_uri: str, db_name: str):
 def close_db_connection():
     """Closes the client's connection to MongoDB."""
     client.close()
+
+def log_llm_usage(tenant_id: str, user_email: str, model: str, input_tokens: int, output_tokens: int, cost: float = 0.0):
+    """
+    Logs LLM usage to the main database.
+    This is used for billing and monitoring purposes.
+    """
+    try:
+        db = get_db()
+        from datetime import datetime
+        usage_record = {
+            "timestamp": datetime.utcnow(),
+            "tenant_id": tenant_id,
+            "user_email": user_email,
+            "model": model,
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "total_tokens": input_tokens + output_tokens,
+            "cost_usd": cost
+        }
+        db.llm_usage.insert_one(usage_record)
+    except Exception as e:
+        # We don't want to crash the request if logging fails, but we should log the error
+        import logging
+        logging.getLogger(__name__).error(f"Failed to log LLM usage: {e}")

@@ -34,15 +34,7 @@ def list_users_in_company(admin_user: UserInDB = Depends(get_admin_user), db: Da
     logger.info(f"Users returned from list_users_in_company: {users_list}")
     return users_list
 
-@router.get("/users/company", response_model=List[UserResponse], dependencies=[Depends(get_project_lead_user)])
-def list_company_users(lead_user: UserInDB = Depends(get_project_lead_user), db: Database = Depends(get_db)):
-    """Lists all users in the project lead's company, accessible by project leads and admins."""
-    if not lead_user.company_id:
-        raise HTTPException(status_code=400, detail="User is not associated with a company.")
-    
-    users_cursor = db.users.find({"company_id": {"$in": [str(lead_user.company_id), lead_user.company_id]}})
-    # Return UserResponse to avoid exposing hashed_password
-    return [UserResponse(email=u.email, full_name=u.full_name, role=u.role) for u in [UserInDB(**user_data) for user_data in users_cursor]]
+# list_company_users moved to routers/users.py
 
 @router.post("/users", response_model=UserBase, status_code=201)
 def create_new_user(new_user: UserCreate, admin_user: UserInDB = Depends(get_admin_user), db: Database = Depends(get_db)):
@@ -112,3 +104,45 @@ def update_user(user_id: PyObjectId, user_update: UserUpdate, admin_user: UserIn
     updated_user = db.users.find_one({"_id": user_id})
     logger.info(f"User {user_id} updated successfully by admin {admin_user.email}.")
     return UserBase(**updated_user).model_dump(by_alias=True)
+
+@router.get("/stats")
+def get_admin_stats(admin_user: UserInDB = Depends(get_admin_user), db: Database = Depends(get_db)):
+    """Returns statistics for the admin's company: user count, project count, task count."""
+    if not admin_user.company_id:
+        raise HTTPException(status_code=400, detail="Admin user is not associated with a company.")
+    
+    company_id_query = {"$in": [str(admin_user.company_id), admin_user.company_id]}
+    
+    # Count Users
+    user_count = db.users.count_documents({"company_id": company_id_query})
+    
+    # Count Projects
+    project_count = db.projects.count_documents({"company_id": company_id_query})
+    
+    # Count Tasks (need to filter by projects belonging to the company)
+    # First get all project IDs for this company
+    projects = db.projects.find({"company_id": company_id_query}, {"_id": 1})
+    project_ids = [str(p["_id"]) for p in projects]
+    # Also include ObjectIds if stored that way
+    # Ideally standardized, but for safety:
+    # We will just rely on the fact that task.project_id matches the project's _id format.
+    # If project_ids are mixed strings/ObjectIds, we might need to be careful.
+    # Assuming standard PyObjectId usage.
+    
+    # Actually, optimized way:
+    # tasks collection has project_id. 
+    # db.tasks.count_documents({"project_id": {"$in": project_ids}}) 
+    # But project_ids need to match the type stored in tasks (ObjectId or str).
+    # Let's get them as they are from the DB result.
+    projects_cursor = db.projects.find({"company_id": company_id_query}, {"_id": 1})
+    project_ids_raw = [p["_id"] for p in projects_cursor]
+    
+    task_count = 0
+    if project_ids_raw:
+        task_count = db.tasks.count_documents({"project_id": {"$in": project_ids_raw}})
+        
+    return {
+        "user_count": user_count,
+        "project_count": project_count,
+        "task_count": task_count
+    }

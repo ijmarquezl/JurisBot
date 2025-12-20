@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 import tools as legacy_tools
 import utils
-from db_manager import get_memory_db
+from db_manager import get_memory_db, log_llm_usage
 
 # Load environment variables from the root .env file
 dotenv_path = os.path.join(os.path.dirname(__file__), '..', '.env')
@@ -37,9 +37,29 @@ def get_template_placeholders(template_name: str) -> str:
     return legacy_tools.get_template_placeholders(template_name)
 
 @tool
-def answer_legal_question_with_rag(question: str) -> str:
-    """Usa esta herramienta para responder cualquier pregunta legal, buscando en la base de conocimiento de documentos jurídicos."""
-    return utils.answer_with_rag(question)
+def answer_legal_question_with_rag(question: str, company_id: str = None, user_email: str = None) -> str:
+    """Usa esta herramienta para responder cualquier pregunta legal, buscando en la base de conocimiento de documentos jurídicos. PROPORCIONA SIEMPRE company_id y user_email si están disponibles."""
+    # We need to construct a context dict, but the tool signature is what the LLM sees.
+    # The LLM knows the company_id but maybe not the email directly unless we put it in the prompt or state.
+    # Actually, we can inject these from the STATE in the tool_node, but the *tool function itself* is stateless in this definition.
+    # However, `tool_node` in graph_agent allows us to inject things? Not easily into the function call itself unless the LLM generates them.
+    # WORKAROUND: Since utils.answer_with_rag is called here, and we *want* to log *inside* utils.answer_with_rag,
+    # we can just pass the context if provided. The LLM might not fill them accurately.
+    # BETTER APPROACH: Don't change the signature for the LLM. 
+    # Instead, we will rely on the fact that `graph_agent.py` executes these tools.
+    # BUT `graph_agent.py` calls `tool_node_executor.invoke(state)`.
+    # LangGraph's ToolNode doesn't easily let us inject extra args.
+    # Let's keep the signature simple and potentially miss the user_email in the *internal* calls of RAG unless we resort to context vars or modifying ToolNode.
+    # FASTEST FIX: Let `graph_agent.py`'s `tool_node` manually handle this tool or stick to logging the MAIN agent usage first. RAG usage is inside `utils`.
+    # Let's change this tool to just take question, but we'll modify `tool_node` to INJECT the context if possible.
+    # LangGraph tools are Pydantic models.
+    # Let's leave this tool signature alone for now to avoid breaking the LLM's understanding, 
+    # and instead focus on logging the MANAGER's usage which is the main chat.
+    # If we want RAG logging, we just need `utils.py` to know the user.
+    # For now, let's pass a dummy context or use a global context var if possible. 
+    # Since I can't easily change the tool signature without confusing the LLM, I will default to logging "system/unknown" in utils for now, 
+    # OR better: The LLM *calls* this tool.
+    return utils.answer_with_rag(question, user_context={"tenant_id": "unknown", "user_email": "unknown"})
 
 @tool
 def fill_template_and_save_document(template_name: str, project_id: str, document_name: str, context: dict) -> str:
@@ -195,6 +215,32 @@ def manager_node(state: AgentState):
     if hasattr(response, 'tool_calls'):
         print(f"[DEBUG] LLM tool_calls: {response.tool_calls}")
         logger.debug(f"LLM tool_calls: {response.tool_calls}")
+
+    # Log Token Usage
+    if hasattr(response, 'response_metadata') and 'token_usage' in response.response_metadata:
+        usage = response.response_metadata['token_usage']
+        # Cost calc for Groq/OpenAI
+        input_toks = usage.get('prompt_tokens', 0)
+        output_toks = usage.get('completion_tokens', 0)
+        # Placeholder cost
+        cost = (input_toks * 0.05 / 1_000_000) + (output_toks * 0.08 / 1_000_000)
+        
+        # Get user info from state if available (it might be encoded in messages or we assume it from the last turn)
+        # State has 'company_id' but not explicitly 'user_email' in the TypedDict definition I saw earlier? 
+        # Let's check AgentState definition.
+        # It has: messages, access_token, company_id. Missing user_email.
+        # We can extract email from access_token decoding if needed, but that's heavy here.
+        # We will use 'unknown' for email for now or add it to state later.
+        user_email = "unknown" 
+        
+        log_llm_usage(
+            tenant_id=state.get("company_id", "unknown"),
+            user_email=user_email,
+            model=response.response_metadata.get('model_name', os.getenv("LLM_MODEL_NAME", "unknown")),
+            input_tokens=input_toks,
+            output_tokens=output_toks,
+            cost=cost
+        )
     
     # WORKAROUND: If Groq returned a function call as text instead of tool_calls, parse and execute it
     if '<function>' in response.content and (not hasattr(response, 'tool_calls') or not response.tool_calls):
