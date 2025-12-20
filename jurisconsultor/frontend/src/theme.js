@@ -128,10 +128,28 @@ export const getTheme = (mode) => {
                         textTransform: 'none',
                         fontSize: '1rem',
                         fontWeight: 600,
-                        color: palette.text.secondary,
+                        color: isDark ? palette.text.secondary : '#555',
                         '&.Mui-selected': {
-                            color: isDark ? '#fff' : '#000',
+                            color: isDark ? '#fff' : palette.primary.main,
                             textShadow: isDark ? `0 0 10px ${palette.primary.main}` : 'none'
+                        }
+                    }
+                }
+            },
+            MuiIconButton: {
+                styleOverrides: {
+                    root: {
+                        color: isDark ? palette.text.primary : '#555',
+                    }
+                }
+            },
+            MuiFab: {
+                styleOverrides: {
+                    root: {
+                        backgroundColor: palette.primary.main,
+                        color: '#fff',
+                        '&:hover': {
+                            backgroundColor: palette.primary.dark,
                         }
                     }
                 }

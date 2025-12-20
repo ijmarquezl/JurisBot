@@ -23,7 +23,7 @@ function MainLayout({ onLogout }) {
   const sidebarContent = (
     <div className="console-sidebar">
       <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-        <Typography variant="h6" className="title-text" sx={{ fontWeight: 'bold', color: 'var(--console-text)' }}>
+        <Typography variant="h5" className="titulo-metalico" sx={{ mb: 0 }}>
           JurisconsultorIA
         </Typography>
       </div>
