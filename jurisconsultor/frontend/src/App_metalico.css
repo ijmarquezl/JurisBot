@@ -181,8 +181,133 @@
     animation: shine 5s linear infinite;
 }
 
-@keyframes shine {
-    to {
-        background-position: 200% center;
-    }
+
+/* --- CONSOLE CHASSIS ARCHITECTURE (v0.1.3) --- */
+
+:root {
+    /* DEFAULT (DARK) CONSOLE VARS */
+    --console-frame-bg: #151515;
+    --console-panel-bg: linear-gradient(180deg, #2a2a2a 0%, #1a1a1a 100%);
+    --console-border: 1px solid rgba(255, 255, 255, 0.1);
+    --console-glow: cyan;
+    --console-screen-bg: rgba(0, 0, 0, 0.6);
+    --console-text: #e0e0e0;
+    --console-button-bg: #222;
+    --console-button-active: #00e5ff;
+}
+
+/* LIGHT MODE OVERRIDES */
+body.light-mode {
+    --console-frame-bg: #e0e5ec;
+    --console-panel-bg: linear-gradient(135deg, #f0f3f7 0%, #dcdcdc 100%);
+    --console-border: 1px solid #ffffff;
+    --console-glow: #00a8ff;
+    --console-screen-bg: rgba(255, 255, 255, 0.7);
+    --console-text: #333;
+    --console-button-bg: #e0e5ec;
+    --console-button-active: #4facfe;
+}
+
+/* MAIN LAYOUT CHASSIS */
+.console-chassis {
+    display: flex;
+    height: 100vh;
+    background-color: var(--console-frame-bg);
+    color: var(--console-text);
+    overflow: hidden;
+}
+
+/* FIXED SIDEBAR (Hardware Panel) */
+.console-sidebar {
+    width: 250px;
+    background: var(--console-panel-bg);
+    border-right: var(--console-border);
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    z-index: 10;
+    box-shadow: 5px 0 15px rgba(0, 0, 0, 0.5);
+    position: relative;
+    /* Screw holes decoration */
+}
+
+/* SCREW DECORATIONS */
+.console-sidebar::before,
+.console-sidebar::after {
+    content: '';
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: linear-gradient(145deg, #bbb, #555);
+    box-shadow: inset 1px 1px 2px #000;
+    left: 10px;
+}
+
+.console-sidebar::before {
+    top: 10px;
+}
+
+.console-sidebar::after {
+    bottom: 10px;
+}
+
+/* EMBEDDED GLASS SCREEN (Outlet Container) */
+.console-screen {
+    flex-grow: 1;
+    margin: 20px;
+    background: var(--console-screen-bg);
+    border: 1px solid rgba(100, 255, 255, 0.2);
+    border-radius: 20px;
+    box-shadow:
+        inset 0 0 20px rgba(0, 0, 0, 0.2),
+        0 0 15px var(--console-glow);
+    /* Neon Glow */
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    overflow: auto;
+    position: relative;
+    padding: 20px;
+}
+
+/* HARDWARE BUTTONS */
+.hardware-button {
+    margin-bottom: 12px;
+    padding: 12px;
+    border-radius: 8px;
+    background: var(--console-button-bg);
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    color: var(--console-text) !important;
+    text-align: left;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    box-shadow:
+        inset 1px 1px 1px rgba(255, 255, 255, 0.1),
+        2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+body.light-mode .hardware-button {
+    box-shadow: 5px 5px 10px #b8b9be, -5px -5px 10px #ffffff;
+    border: 1px solid #d1d9e6;
+}
+
+.hardware-button:hover {
+    transform: translateY(-1px);
+    border-color: var(--console-glow);
+}
+
+.hardware-button.active {
+    background: var(--console-glow);
+    color: #000 !important;
+    font-weight: bold;
+    box-shadow: 0 0 10px var(--console-glow);
+}
+
+/* TOGGLE SWITCH AREA */
+.console-toggle-area {
+    margin-top: auto;
+    padding-top: 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    justify-content: center;
 }

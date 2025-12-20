@@ -13,137 +13,113 @@ function MainLayout({ onLogout }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { user } = useAuth();
   const { mode, toggleTheme } = useMetalTheme();
+  const location = window.location.pathname; // To highlight active button
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
   };
 
-  const drawer = (
-    <Box onClick={handleDrawerToggle} sx={{ textAlign: 'center' }}>
-      <Typography variant="h6" sx={{ my: 2 }}>
-        JurisconsultorIA
-      </Typography>
-      <Divider />
-      <List>
-        <ListItem disablePadding>
-          <ListItemButton onClick={toggleTheme} sx={{ textAlign: 'center' }}>
-            <ListItemText primary={mode === 'dark' ? "Modo Claro" : "Modo Oscuro"} />
-            {mode === 'dark' ? <Brightness7Icon sx={{ ml: 1 }} /> : <Brightness4Icon sx={{ ml: 1 }} />}
-          </ListItemButton>
-        </ListItem>
-        <Divider />
-        <ListItem disablePadding>
-          <ListItemButton component={RouterLink} to="/dashboard" sx={{ textAlign: 'center' }}>
-            <ListItemText primary="Asuntos" />
-          </ListItemButton>
-        </ListItem>
-        <ListItem disablePadding>
-          <ListItemButton component={RouterLink} to="/asunto-lead" sx={{ textAlign: 'center' }}>
-            <ListItemText primary="Líder Asuntos" />
-          </ListItemButton>
-        </ListItem>
-        <ListItem disablePadding>
-          <ListItemButton component={RouterLink} to="/admin" sx={{ textAlign: 'center' }}>
-            <ListItemText primary="Admin" />
-          </ListItemButton>
-        </ListItem>
+  // --- HARDWARE SIDEBAR CONTENT (Desktop) ---
+  const sidebarContent = (
+    <div className="console-sidebar">
+      <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+        <Typography variant="h6" className="title-text" sx={{ fontWeight: 'bold', color: 'var(--console-text)' }}>
+          JURIS<br />CONSOLE
+        </Typography>
+      </div>
+
+      {/* Hardware Buttons */}
+      <div style={{ display: 'flex', flexDirection: 'column' }}>
+        <Button
+          component={RouterLink} to="/dashboard"
+          className={`hardware-button ${location === '/dashboard' ? 'active' : ''}`}
+          startIcon={<i className="fas fa-home"></i>}
+        >
+          Asuntos
+        </Button>
+
+        <Button
+          component={RouterLink} to="/asunto-lead"
+          className={`hardware-button ${location === '/asunto-lead' ? 'active' : ''}`}
+        >
+          Líder
+        </Button>
+
+        <Button
+          component={RouterLink} to="/admin"
+          className={`hardware-button ${location === '/admin' ? 'active' : ''}`}
+        >
+          Admin
+        </Button>
+
         {user && user.role === 'superadmin' && (
-          <ListItem disablePadding>
-            <ListItemButton component={RouterLink} to="/sources" sx={{ textAlign: 'center' }}>
-              <ListItemText primary="Fuentes" />
-            </ListItemButton>
-          </ListItem>
+          <>
+            <Button
+              component={RouterLink} to="/sources"
+              className={`hardware-button ${location === '/sources' ? 'active' : ''}`}
+            >
+              Fuentes
+            </Button>
+            <Button
+              component={RouterLink} to="/backoffice"
+              className={`hardware-button ${location === '/backoffice' ? 'active' : ''}`}
+            >
+              Backoffice
+            </Button>
+          </>
         )}
-        {user && user.role === 'superadmin' && (
-          <ListItem disablePadding>
-            <ListItemButton component={RouterLink} to="/backoffice" sx={{ textAlign: 'center', backgroundColor: 'rgba(255, 0, 0, 0.1)' }}>
-              <ListItemText primary="Backoffice" />
-            </ListItemButton>
-          </ListItem>
-        )}
-        <ListItem disablePadding>
-          <ListItemButton onClick={onLogout} sx={{ textAlign: 'center' }}>
-            <ListItemText primary="Cerrar Sesión" />
-          </ListItemButton>
-        </ListItem>
-      </List>
-    </Box>
+      </div>
+
+      {/* Toggle at Bottom */}
+      <div className="console-toggle-area">
+        <Tooltip title={mode === 'dark' ? "Modo Claro" : "Modo Oscuro"}>
+          <IconButton onClick={toggleTheme} sx={{ color: 'var(--console-text)', border: '1px solid var(--console-text)' }}>
+            {mode === 'dark' ? <Brightness7Icon /> : <Brightness4Icon />}
+          </IconButton>
+        </Tooltip>
+      </div>
+
+      <Button onClick={onLogout} sx={{ mt: 2, color: 'var(--console-text)' }} size="small">
+        Salir
+      </Button>
+    </div>
   );
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
-      <AppBar component="nav">
-        <Toolbar>
-          <IconButton
-            color="inherit"
-            aria-label="open drawer"
-            edge="start"
-            onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { sm: 'none' } }}
-          >
-            <MenuIcon />
-          </IconButton>
-          <Typography
-            variant="h6"
-            component="div"
-            sx={{ flexGrow: 1, display: { xs: 'none', sm: 'block' } }}
-          >
-            <RouterLink to="/dashboard" style={{ textDecoration: 'none', color: 'inherit' }}>
-              JurisconsultorIA
-            </RouterLink>
-          </Typography>
-          <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
-            <Tooltip title={mode === 'dark' ? "Cambiar a Modo Claro" : "Cambiar a Modo Oscuro"}>
-              <IconButton onClick={toggleTheme} color="inherit" sx={{ mr: 2 }}>
-                {mode === 'dark' ? <Brightness7Icon /> : <Brightness4Icon />}
-              </IconButton>
-            </Tooltip>
-            <Button color="inherit" component={RouterLink} to="/dashboard">
-              Asuntos
-            </Button>
-            <Button color="inherit" component={RouterLink} to="/asunto-lead">
-              Líder Asuntos
-            </Button>
-            <Button color="inherit" component={RouterLink} to="/admin">
-              Admin
-            </Button>
-            {user && user.role === 'superadmin' && (
-              <Button color="inherit" component={RouterLink} to="/sources">
-                Fuentes
-              </Button>
-            )}
-            {user && user.role === 'superadmin' && (
-              <Button color="inherit" component={RouterLink} to="/backoffice" sx={{ backgroundColor: 'rgba(255, 255, 255, 0.1)' }}>
-                Backoffice
-              </Button>
-            )}
-            <Button color="inherit" onClick={onLogout}>
-              Cerrar Sesión
-            </Button>
-          </Box>
-        </Toolbar>
-      </AppBar>
-      <nav>
-        <Drawer
-          variant="temporary"
-          open={mobileOpen}
-          onClose={handleDrawerToggle}
-          ModalProps={{
-            keepMounted: true, // Better open performance on mobile.
-          }}
-          sx={{
-            display: { xs: 'block', sm: 'none' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
-          }}
-        >
-          {drawer}
-        </Drawer>
-      </nav>
-      <Box component="main" sx={{ p: 3, width: '100%' }}>
-        <Toolbar />
-        <Outlet />
+    <div className="console-chassis">
+      {/* HEADER FOR MOBILE ONLY */}
+      <Box sx={{ display: { xs: 'block', sm: 'none' }, position: 'absolute', top: 0, width: '100%', zIndex: 20 }}>
+        <AppBar position="static" color="transparent" elevation={0} sx={{ backdropFilter: 'blur(5px)' }}>
+          <Toolbar>
+            <IconButton onClick={handleDrawerToggle} sx={{ color: 'var(--console-text)' }}>
+              <MenuIcon />
+            </IconButton>
+            <Typography variant="h6" sx={{ flexGrow: 1, color: 'var(--console-text)' }}>JurisBot</Typography>
+          </Toolbar>
+        </AppBar>
       </Box>
-    </Box>
+
+      {/* MOBILE DRAWER */}
+      <Drawer
+        variant="temporary"
+        open={mobileOpen}
+        onClose={handleDrawerToggle}
+        sx={{ display: { xs: 'block', sm: 'none' }, '& .MuiDrawer-paper': { width: 240, background: 'var(--console-panel-bg)' } }}
+      >
+        {sidebarContent}
+      </Drawer>
+
+      {/* DESKTOP SIDEBAR */}
+      <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
+        {sidebarContent}
+      </Box>
+
+      {/* MAIN SCREEN AREA */}
+      <div className="console-screen">
+        <Toolbar sx={{ display: { xs: 'block', sm: 'none' } }} /> {/* Spacer for mobile header */}
+        <Outlet />
+      </div>
+    </div>
   );
 }
 
