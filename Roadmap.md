@@ -57,6 +57,22 @@
 - Listo para despliegue inicial.
 
 ** V 0.1.1 **
-- Modificación del estilo a uno metálico moderno.  (Revisar archivos index_metalico.css, App_metalico.css y ThemeProvider_metalico.js)
-- Creación de una batería de pruebas de regresión para verificar funcionalidades existentes una vez que se hagan nuevas versiones.
-- 
+- Modificación del estilo a uno metálico moderno (Dark Metal).
+- Creación de una batería de pruebas de regresión para verificar funcionalidades existentes.
+- Refactorización de ThemeProvider para soportar temas dinámicos.
+
+** V 0.1.2 **
+- Introducción del "Modo Claro Metalico" (Light Console) para mayor accesibilidad.
+- Restauración y reubicación del selector de tema (Toggle Switch).
+- Persistencia de preferencia de tema del usuario.
+
+** V 0.1.3 (Console UI Refactor) **
+- Cambio estructural mayor: eliminación de la barra superior (AppBar) en escritorio.
+- Implementación de Barra Lateral de "Hardware" permanente.
+- Encapsulamiento del contenido en un contenedor de "Pantalla de Cristal" con bordes de neón.
+- Estilización de enlaces de navegación como botones físicos con indicadores LED.
+- Soporte completo de la estructura "Consola" para temas Claro y Oscuro.
+
+** Next Steps **
+- Recopilación de feedback de usuarios sobre la nueva interfaz.
+- Refinamiento de animaciones y transiciones de la consola.
