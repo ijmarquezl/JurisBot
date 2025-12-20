@@ -2,13 +2,17 @@ import React, { useState } from 'react';
 import { Outlet, Link as RouterLink } from 'react-router-dom';
 import { AppBar, Toolbar, Typography, Button, Box, IconButton, Drawer, List, ListItem, ListItemButton, ListItemText, Divider, Tooltip } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
+import Brightness4Icon from '@mui/icons-material/Brightness4'; // Moon
+import Brightness7Icon from '@mui/icons-material/Brightness7'; // Sun
 import { useAuth } from '../AuthContext';
+import { useMetalTheme } from '../ThemeProvider_metalico';
 
 const drawerWidth = 240;
 
 function MainLayout({ onLogout }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { user } = useAuth();
+  const { mode, toggleTheme } = useMetalTheme();
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -21,6 +25,13 @@ function MainLayout({ onLogout }) {
       </Typography>
       <Divider />
       <List>
+        <ListItem disablePadding>
+          <ListItemButton onClick={toggleTheme} sx={{ textAlign: 'center' }}>
+            <ListItemText primary={mode === 'dark' ? "Modo Claro" : "Modo Oscuro"} />
+            {mode === 'dark' ? <Brightness7Icon sx={{ ml: 1 }} /> : <Brightness4Icon sx={{ ml: 1 }} />}
+          </ListItemButton>
+        </ListItem>
+        <Divider />
         <ListItem disablePadding>
           <ListItemButton component={RouterLink} to="/dashboard" sx={{ textAlign: 'center' }}>
             <ListItemText primary="Asuntos" />
@@ -82,6 +93,11 @@ function MainLayout({ onLogout }) {
             </RouterLink>
           </Typography>
           <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
+            <Tooltip title={mode === 'dark' ? "Cambiar a Modo Claro" : "Cambiar a Modo Oscuro"}>
+              <IconButton onClick={toggleTheme} color="inherit" sx={{ mr: 2 }}>
+                {mode === 'dark' ? <Brightness7Icon /> : <Brightness4Icon />}
+              </IconButton>
+            </Tooltip>
             <Button color="inherit" component={RouterLink} to="/dashboard">
               Asuntos
             </Button>

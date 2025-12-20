@@ -1,7 +1,6 @@
 #root {
     width: 100%;
-    background-color: #0f0f0f;
-    /* Un fondo casi negro para que resalte el metal */
+    /* Background handled by MUI Theme */
 }
 
 /* Efecto de logo cromado */
