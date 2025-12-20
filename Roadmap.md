@@ -55,3 +55,8 @@
 - Corrección de visualización de estadísticas en Dashboard de Administrador.
 - Verificación de flujos completos de Backoffice y Superadmin.
 - Listo para despliegue inicial.
+
+** V 0.1.1 **
+- Modificación del estilo a uno metálico moderno.  (Revisar archivos index_metalico.css, App_metalico.css y ThemeProvider_metalico.js)
+- Creación de una batería de pruebas de regresión para verificar funcionalidades existentes una vez que se hagan nuevas versiones.
+- 

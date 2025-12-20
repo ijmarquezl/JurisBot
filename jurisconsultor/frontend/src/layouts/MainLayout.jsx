@@ -3,44 +3,15 @@ import { Outlet, Link as RouterLink } from 'react-router-dom';
 import { AppBar, Toolbar, Typography, Button, Box, IconButton, Drawer, List, ListItem, ListItemButton, ListItemText, Divider, Tooltip } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import { useAuth } from '../AuthContext';
-import { useTheme } from '../ThemeContext';
-
-// Icons for theme toggle
-import Brightness4Icon from '@mui/icons-material/Brightness4'; // Dark
-import Brightness7Icon from '@mui/icons-material/Brightness7'; // Light
-import SettingsBrightnessIcon from '@mui/icons-material/SettingsBrightness'; // System
 
 const drawerWidth = 240;
 
 function MainLayout({ onLogout }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { user } = useAuth();
-  const { mode, toggleTheme } = useTheme();
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
-  };
-
-  const handleThemeChange = () => {
-    if (mode === 'light') {
-      toggleTheme('dark');
-    } else if (mode === 'dark') {
-      toggleTheme('system');
-    } else {
-      toggleTheme('light');
-    }
-  };
-
-  const themeIcons = {
-    light: <Brightness7Icon />,
-    dark: <Brightness4Icon />,
-    system: <SettingsBrightnessIcon />,
-  };
-
-  const themeTooltips = {
-    light: 'Modo Claro',
-    dark: 'Modo Oscuro',
-    system: 'Modo del Sistema',
   };
 
   const drawer = (
@@ -130,14 +101,6 @@ function MainLayout({ onLogout }) {
                 Backoffice
               </Button>
             )}
-            <Tooltip title={`Cambiar a ${themeTooltips[mode === 'light' ? 'dark' : mode === 'dark' ? 'system' : 'light']}`}>
-              <IconButton
-                onClick={handleThemeChange}
-                color="inherit"
-              >
-                {themeIcons[mode]}
-              </IconButton>
-            </Tooltip>
             <Button color="inherit" onClick={onLogout}>
               Cerrar Sesión
             </Button>
