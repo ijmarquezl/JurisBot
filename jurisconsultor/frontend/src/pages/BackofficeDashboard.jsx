@@ -408,7 +408,7 @@ function ProjectManager({ projects, fetchProjects }) {
                                 <TableCell sx={cellStyle}>Empresa ID</TableCell>
                                 <TableCell sx={cellStyle}>Archivado</TableCell>
                                 <TableCell sx={{ ...cellStyle, maxWidth: 100 }} align="right">Acciones</TableCell>
-                            </TableRow>>
+                            </TableRow>
                         </TableHead>
                         <TableBody>
                             {projects.map((project) => (
@@ -427,7 +427,7 @@ function ProjectManager({ projects, fetchProjects }) {
                                         ) : 'N/A'}
                                     </TableCell>
                                     <TableCell sx={cellStyle} title={project.company_id}>{project.company_id}</TableCell>
-                                    <TableCell sx={cellStyle}>{project.is_archived ? 'Sí' : 'No'}</TableCell>>
+                                    <TableCell sx={cellStyle}>{project.is_archived ? 'Sí' : 'No'}</TableCell>
                                     <TableCell sx={{ ...cellStyle, maxWidth: 100 }} align="right">
                                         <IconButton size="small" sx={{ mr: 1 }} onClick={() => handleOpenEdit(project)}><EditIcon /></IconButton>
                                         <IconButton size="small" color="error" onClick={() => handleOpenDelete(project)}><DeleteIcon /></IconButton>
