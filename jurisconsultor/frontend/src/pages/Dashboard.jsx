@@ -5,7 +5,7 @@ import {
   DialogActions, DialogContent, DialogTitle, IconButton, Select, MenuItem, FormControl, InputLabel,
   Tabs, Tab, Card, CardContent, Switch, FormControlLabel
 } from '@mui/material';
-import { Add as AddIcon, Send as SendIcon, Delete as DeleteIcon, Archive as ArchiveIcon, Unarchive as UnarchiveIcon, FolderOpen as FolderOpenIcon } from '@mui/icons-material';
+import { Add as AddIcon, Send as SendIcon, Delete as DeleteIcon, Archive as ArchiveIcon, Unarchive as UnarchiveIcon, FolderOpen as FolderOpenIcon, Refresh as RefreshIcon } from '@mui/icons-material';
 import apiClient from '../api';
 import logger from '../logger';
 
