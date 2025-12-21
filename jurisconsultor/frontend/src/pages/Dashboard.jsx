@@ -370,9 +370,11 @@ function Dashboard() {
         document_name: documentName,
         context: formData
       });
-      fetchGeneratedDocuments();
+      console.log("Document generation successful. Fetching updated list...");
+      await fetchGeneratedDocuments(); // Wait for the fetch
       setDocumentName('');
       setSelectedProjectId('');
+      alert("¡Documento generado exitosamente!");
     } catch (err) {
       logger.error("Error generating document:", err);
       const msg = err.response?.data?.detail || 'Error al generar el documento.';
@@ -619,7 +621,12 @@ function Dashboard() {
 
           <Grid item xs={12}>
             <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>Documentos Generados</Typography>
-            <FormControlLabel control={<Switch checked={showArchivedDocuments} onChange={(e) => setShowArchivedDocuments(e.target.checked)} />} label="Mostrar archivados" sx={{ mb: 1 }} />
+            <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+              <FormControlLabel control={<Switch checked={showArchivedDocuments} onChange={(e) => setShowArchivedDocuments(e.target.checked)} />} label="Mostrar archivados" />
+              <IconButton onClick={fetchGeneratedDocuments} size="small" title="Actualizar lista">
+                <RefreshIcon />
+              </IconButton>
+            </Stack>
             <Paper elevation={2} sx={{ p: 2, maxHeight: '40vh', overflow: 'auto' }}>
               {loading ? <Box sx={{ p: 2, textAlign: 'center' }}><CircularProgress /></Box> : generatedDocuments.length > 0 ? (
                 <List>{generatedDocuments.map(doc => {
