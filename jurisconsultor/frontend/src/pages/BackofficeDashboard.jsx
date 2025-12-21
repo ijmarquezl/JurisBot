@@ -56,6 +56,7 @@ function SortableItem({ id, children }) {
             {children}
             <IconButton
                 {...listeners}
+                className="light-metal-btn"
                 sx={{
                     position: 'absolute',
                     top: 8,

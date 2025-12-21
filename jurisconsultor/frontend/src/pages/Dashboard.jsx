@@ -463,7 +463,7 @@ function Dashboard() {
       )}
 
       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-        <Tabs value={tab} onChange={handleTabChange}>
+        <Tabs value={tab} onChange={handleTabChange} className="light-metal-tabs">
           <Tab label="Asuntos y Tareas" />
           <Tab label="Generador de Documentos" />
           {/* The "Administrar Fuentes" tab used to be here */}
@@ -477,7 +477,7 @@ function Dashboard() {
           <Grid item xs={12} md={4}>
             <Stack direction="row" justifyContent="space-between" alignItems="center">
               <Typography variant="h6">Asuntos</Typography>
-              {canManageProjects && <Button startIcon={<AddIcon />} onClick={() => setOpenCreateProject(true)}>Crear</Button>}
+              {canManageProjects && <Button startIcon={<AddIcon />} onClick={() => setOpenCreateProject(true)} className="light-metal-btn-rect">Crear</Button>}
             </Stack>
             <FormControlLabel control={<Switch checked={includeArchivedProjects} onChange={(e) => setIncludeArchivedProjects(e.target.checked)} />} label="Mostrar archivados" sx={{ mb: 1 }} />
             <Paper elevation={2} sx={{ maxHeight: '60vh', overflow: 'auto' }}>
@@ -498,9 +498,9 @@ function Dashboard() {
                       }
                     />
                     {canManageProjects && (
-                      <Stack direction="row" spacing={0.5} onClick={(e) => e.stopPropagation()}>
-                        <IconButton edge="end" aria-label="archive" onClick={() => handleProjectArchiveToggle(p._id, p.is_archived)} size="small">{p.is_archived ? <UnarchiveIcon /> : <ArchiveIcon />}</IconButton>
-                        <IconButton edge="end" aria-label="delete" onClick={() => { setProjectToDelete(p); setOpenDeleteProject(true); }} size="small"><DeleteIcon /></IconButton>
+                      <Stack direction="row" spacing={1} onClick={(e) => e.stopPropagation()}>
+                        <IconButton className="light-metal-btn" edge="end" aria-label="archive" onClick={() => handleProjectArchiveToggle(p._id, p.is_archived)} size="small">{p.is_archived ? <UnarchiveIcon /> : <ArchiveIcon />}</IconButton>
+                        <IconButton className="light-metal-btn" edge="end" aria-label="delete" onClick={() => { setProjectToDelete(p); setOpenDeleteProject(true); }} size="small"><DeleteIcon /></IconButton>
                       </Stack>
                     )}
                   </ListItemButton>

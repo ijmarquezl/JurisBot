@@ -3,10 +3,10 @@ import {
     Typography, Box, Paper, Stack, TextField, Button, IconButton,
     CircularProgress, Fab, Divider
 } from '@mui/material';
-import { 
-    Chat as ChatIcon, 
-    Close as CloseIcon, 
-    Send as SendIcon 
+import {
+    Chat as ChatIcon,
+    Close as CloseIcon,
+    Send as SendIcon
 } from '@mui/icons-material';
 import apiClient from '../api';
 import logger from '../logger';
@@ -37,14 +37,14 @@ function ChatWidget() {
         try {
             const response = await apiClient.post('/ask', { question: currentChatInput });
             const rawAnswer = response.data.answer;
-            
+
             // Simple check if the answer is just an error message from the tool
             const isError = rawAnswer.toLowerCase().startsWith('error:');
 
-            const agentMessage = { 
-                sender: 'agent', 
+            const agentMessage = {
+                sender: 'agent',
                 text: rawAnswer,
-                isError: isError 
+                isError: isError
             };
             setChatHistory(prev => [...prev, agentMessage]);
 
@@ -66,11 +66,12 @@ function ChatWidget() {
                 color="primary"
                 aria-label="chat"
                 onClick={toggleChat}
+                className="light-metal-btn"
                 sx={{
                     position: 'fixed',
                     bottom: 32,
                     right: 32,
-                    zIndex: 1300, // Ensure it's above other elements
+                    zIndex: 1300,
                 }}
             >
                 <ChatIcon />

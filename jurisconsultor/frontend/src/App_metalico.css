@@ -326,3 +326,56 @@ body.light-mode .titulo-metalico {
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
 }
+
+/* --- LIGHT METAL INTERACTIVE ELEMENTS (v0.1.6) --- */
+
+/* Neumorphic Action Button (Circular) */
+body.light-mode .light-metal-btn {
+    background: linear-gradient(145deg, #ffffff, #e6e6e6);
+    box-shadow: 3px 3px 6px #b8b9be, -3px -3px 6px #ffffff;
+    color: #555;
+    border: 1px solid rgba(255,255,255, 0.8);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+body.light-mode .light-metal-btn:hover {
+    background: #e6e6e6;
+    box-shadow: inset 2px 2px 5px #b8b9be, inset -2px -2px 5px #ffffff;
+    color: var(--console-glow);
+    transform: translateY(1px);
+}
+
+/* Neumorphic Regular Button (Rectangular) */
+body.light-mode .light-metal-btn-rect {
+    background: linear-gradient(145deg, #ffffff, #e6e6e6);
+    box-shadow: 4px 4px 8px #b8b9be, -4px -4px 8px #ffffff;
+    color: #333;
+    border: 1px solid #fff;
+    border-radius: 12px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+body.light-mode .light-metal-btn-rect:hover {
+    transform: translateY(-2px);
+    box-shadow: 6px 6px 12px #b8b9be, -6px -6px 12px #ffffff;
+    color: var(--console-glow);
+}
+
+/* Light Metal Tabs */
+body.light-mode .light-metal-tabs .MuiTab-root {
+    font-weight: 600;
+    opacity: 0.8;
+    transition: all 0.3s ease;
+}
+
+body.light-mode .light-metal-tabs .MuiTab-root.Mui-selected {
+    opacity: 1;
+    text-shadow: 0 0 10px rgba(0, 168, 255, 0.3);
+}
+
+body.light-mode .light-metal-tabs .MuiTabs-indicator {
+    background-color: #00a8ff;
+    box-shadow: 0 0 10px #00a8ff;
+}
+
