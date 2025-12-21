@@ -349,15 +349,15 @@ function Dashboard() {
     console.log("Generating Document with:", { selectedTemplate, documentName, selectedProjectId });
 
     if (!selectedTemplate) {
-      alert("Error: Debes seleccionar una plantilla.");
+      setError("Error: Debes seleccionar una plantilla.");
       return;
     }
     if (!documentName.trim()) {
-      alert("Error: Debes asignar un nombre al documento.");
+      setError("Error: Debes asignar un nombre al documento.");
       return;
     }
     if (!selectedProjectId) {
-      alert("Error: Debes seleccionar un Asunto (Proyecto) para asociar el documento.");
+      setError("Error: Debes seleccionar un Asunto (Proyecto) para asociar el documento.");
       return;
     }
 
@@ -373,12 +373,10 @@ function Dashboard() {
       fetchGeneratedDocuments();
       setDocumentName('');
       setSelectedProjectId('');
-      alert("¡Documento generado exitosamente!");
     } catch (err) {
       logger.error("Error generating document:", err);
       const msg = err.response?.data?.detail || 'Error al generar el documento.';
       setError(msg);
-      alert("Error del servidor: " + msg);
     } finally {
       setLoading(false);
     }
@@ -582,6 +580,7 @@ function Dashboard() {
 
             {placeholders.length > 0 && (
               <Button
+                type="button"
                 variant="contained"
                 color="primary"
                 onClick={handleGenerateDocument}
