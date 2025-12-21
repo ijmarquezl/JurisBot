@@ -345,10 +345,22 @@ function Dashboard() {
   };
 
   const handleGenerateDocument = async () => {
-    if (!selectedTemplate || !documentName || !selectedProjectId) {
-      setError("Por favor, selecciona una plantilla, asigna un nombre al documento y elige un proyecto.");
+    // DEBUG: Log values to check what is missing
+    console.log("Generating Document with:", { selectedTemplate, documentName, selectedProjectId });
+
+    if (!selectedTemplate) {
+      alert("Error: Debes seleccionar una plantilla.");
       return;
     }
+    if (!documentName.trim()) {
+      alert("Error: Debes asignar un nombre al documento.");
+      return;
+    }
+    if (!selectedProjectId) {
+      alert("Error: Debes seleccionar un Asunto (Proyecto) para asociar el documento.");
+      return;
+    }
+
     setLoading(true);
     setError('');
     try {
@@ -361,235 +373,34 @@ function Dashboard() {
       fetchGeneratedDocuments();
       setDocumentName('');
       setSelectedProjectId('');
+      alert("¡Documento generado exitosamente!");
     } catch (err) {
       logger.error("Error generating document:", err);
-      setError(err.response?.data?.detail || 'Error al generar el documento.');
+      const msg = err.response?.data?.detail || 'Error al generar el documento.';
+      setError(msg);
+      alert("Error del servidor: " + msg);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDeleteDocument = async (documentId) => {
-    if (!window.confirm('¿Estás seguro de que quieres eliminar este documento? Esta acción es irreversible.')) return;
-    setLoading(true);
-    try {
-      await apiClient.delete(`/documents/${documentId}`);
-      fetchGeneratedDocuments();
-    } catch (err) {
-      logger.error("Error deleting document:", err);
-      setError(err.response?.data?.detail || 'Error al eliminar el documento.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // ... inside the return ...
 
-  const handleArchiveToggleDocument = async (documentId, isArchived) => {
-    setLoading(true);
-    try {
-      await apiClient.put(`/documents/${documentId}/archive`, { is_archived: !isArchived });
-      fetchGeneratedDocuments();
-    } catch (err) {
-      logger.error("Error archiving document:", err);
-      setError(err.response?.data?.detail || 'Error al archivar/desarchivar el documento.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleProjectArchiveToggle = async (projectId, isArchived) => {
-    setLoading(true);
-    try {
-      await apiClient.put(`/projects/${projectId}/archive`, { archive_status: !isArchived });
-      fetchProjects(); // Refetch projects to update the list
-    } catch (err) {
-      logger.error("Error archiving project:", err);
-      setError(err.response?.data?.detail || 'Error al archivar/desarchivar el proyecto.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const canManageProjects = currentUser && (currentUser.role === 'admin' || currentUser.role === 'lead');
-
-  return (
-    <Box sx={{ flexGrow: 1 }}>
-      <CreateProjectDialog open={openCreateProject} onClose={() => setOpenCreateProject(false)} onCreated={fetchProjects} />
-      <CreateTaskDialog open={openCreateTask} onClose={() => setOpenCreateTask(false)} onCreated={() => fetchTasks(selectedProject?._id)} projectId={selectedProject?._id} />
-      <DeleteProjectConfirmDialog open={openDeleteProject} onClose={() => setOpenDeleteProject(false)} onConfirmed={fetchProjects} project={projectToDelete} />
-      <CreateDocumentDialog open={openCreateDocument} onClose={() => setOpenCreateDocument(false)} onCreated={fetchGeneratedDocuments} projects={projects} />
-
-      <Typography variant="h1" className="titulo-metalico" gutterBottom sx={{ fontSize: '2.5rem !important', mb: 3 }}>Dashboard</Typography>
-
-      {/* Stats Cards for Admins */}
-      {(currentUser?.role === 'admin' || currentUser?.role === 'superadmin') && (
-        <Grid container spacing={3} sx={{ mb: 4 }}>
-          <Grid item xs={12} sm={4}>
-            <Card>
-              <CardContent>
-                <Typography color="textSecondary" gutterBottom>
-                  Usuarios
-                </Typography>
-                <Typography variant="h4">
-                  {stats.user_count}
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} sm={4}>
-            <Card>
-              <CardContent>
-                <Typography color="textSecondary" gutterBottom>
-                  Asuntos
-                </Typography>
-                <Typography variant="h4">
-                  {stats.project_count}
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} sm={4}>
-            <Card>
-              <CardContent>
-                <Typography color="textSecondary" gutterBottom>
-                  Tareas
-                </Typography>
-                <Typography variant="h4">
-                  {stats.task_count}
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
-      )}
-
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-        <Tabs value={tab} onChange={handleTabChange} className="light-metal-tabs">
-          <Tab label="Asuntos y Tareas" />
-          <Tab label="Generador de Documentos" />
-          {/* The "Administrar Fuentes" tab used to be here */}
-        </Tabs>
-      </Box>
-
-      {error && <Typography color="error" sx={{ mb: 2 }}>{error}</Typography>}
-
-      {tab === 0 && (
-        <Grid container spacing={3}>
-          <Grid item xs={12} md={4}>
-            <Stack direction="row" justifyContent="space-between" alignItems="center">
-              <Typography variant="h6">Asuntos</Typography>
-              {canManageProjects && <Button startIcon={<AddIcon />} onClick={() => setOpenCreateProject(true)} className="light-metal-btn-rect">Crear</Button>}
-            </Stack>
-            <FormControlLabel control={<Switch checked={includeArchivedProjects} onChange={(e) => setIncludeArchivedProjects(e.target.checked)} />} label="Mostrar archivados" sx={{ mb: 1 }} />
-            <Paper elevation={2} sx={{ maxHeight: '60vh', overflow: 'auto' }}>
-              {loading ? <Box sx={{ p: 2, textAlign: 'center' }}><CircularProgress /></Box> : (
-                <List>{projects.map((p) => (
-                  <ListItemButton key={p._id} selected={selectedProject?._id === p._id} onClick={() => handleProjectSelect(p)} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <ListItemText
-                      primary={p.name}
-                      secondary={
-                        <>
-                          {p.is_archived ? 'Archivado' : ''}
-                          {p.due_date && (
-                            <Typography variant="caption" display="block" color={new Date(p.due_date) < new Date() ? 'error' : 'text.secondary'} sx={{ fontWeight: new Date(p.due_date) < new Date() ? 'bold' : 'normal' }}>
-                              Vence: {new Date(p.due_date).toLocaleDateString()}
-                            </Typography>
-                          )}
-                        </>
-                      }
-                    />
-                    {canManageProjects && (
-                      <Stack direction="row" spacing={1} onClick={(e) => e.stopPropagation()}>
-                        <IconButton className="light-metal-btn" edge="end" aria-label="archive" onClick={() => handleProjectArchiveToggle(p._id, p.is_archived)} size="small">{p.is_archived ? <UnarchiveIcon /> : <ArchiveIcon />}</IconButton>
-                        <IconButton className="light-metal-btn" edge="end" aria-label="delete" onClick={() => { setProjectToDelete(p); setOpenDeleteProject(true); }} size="small"><DeleteIcon /></IconButton>
-                      </Stack>
-                    )}
-                  </ListItemButton>
-                ))}</List>
-              )}</Paper>
-          </Grid>
-          <Grid item xs={12} md={8}>
-            <Stack direction="row" justifyContent="space-between" alignItems="center">
-              <Typography variant="h6">{selectedProject ? `Tareas del Asunto "${selectedProject.name}"` : 'Selecciona un asunto'}</Typography>
-              {selectedProject && <Button startIcon={<AddIcon />} onClick={() => setOpenCreateTask(true)}>Nueva Tarea</Button>}
-            </Stack>
-            <Paper elevation={2} sx={{ maxHeight: '65vh', overflow: 'auto', p: 2 }}>
-              {loading ? <Box sx={{ p: 2, textAlign: 'center' }}><CircularProgress /></Box> : tasks.length > 0 ? (
-                <List>{tasks.map((t) => (
-                  <React.Fragment key={t._id}>
-                    <ListItem>
-                      <ListItemText
-                        primary={t.title}
-                        secondary={
-                          <>
-                            {t.description || ''}
-                            {t.due_date && (
-                              <Typography variant="body2" color={new Date(t.due_date) < new Date() ? 'error' : 'text.secondary'} sx={{ mt: 0.5, fontWeight: new Date(t.due_date) < new Date() ? 'bold' : 'normal' }}>
-                                Vence: {new Date(t.due_date).toLocaleDateString()}
-                              </Typography>
-                            )}
-                          </>
-                        }
-                      />
-                      <FormControl size="small" sx={{ minWidth: 120, ml: 1 }}>
-                        <Select value={t.status} onChange={(e) => handleStatusChange(t._id, e.target.value)}>
-                          <MenuItem value="todo">Por Hacer</MenuItem>
-                          <MenuItem value="in_progress">En Progreso</MenuItem>
-                          <MenuItem value="done">Hecho</MenuItem>
-                        </Select>
-                      </FormControl>
-                    </ListItem>
-                    <Divider />
-                  </React.Fragment>
-                ))}</List>
-              ) : <Typography sx={{ p: 2, textAlign: 'center', color: 'text.secondary' }}>{selectedProject ? 'No hay tareas en este proyecto.' : ''}</Typography>}
-            </Paper>
-          </Grid>
-        </Grid>
-      )}
-
-      {/* Document Generator Tab */}
-      {tab === 1 && (
-        <Grid container spacing={3}>
-          <Grid item xs={12} md={5}>
-            <Typography variant="h6" gutterBottom>Configuración de Documento</Typography>
-            <Paper elevation={2} sx={{ p: 2 }}>
-              <Stack spacing={3}>
-                <Button
-                  variant="outlined"
-                  component="label"
-                  startIcon={uploadingTemplate ? <CircularProgress size={20} /> : <AddIcon />}
-                >
-                  Cargar Plantilla (.docx)
-                  <input type="file" hidden accept=".docx" onChange={handleTemplateUpload} />
-                </Button>
-                <FormControl fullWidth>
-                  <InputLabel>Plantilla</InputLabel>
-                  <Select value={selectedTemplate} label="Plantilla" onChange={(e) => handleTemplateChange(e.target.value)}>
-                    <MenuItem value=""><em>Selecciona una plantilla</em></MenuItem>
-                    {templates.map(t => <MenuItem key={t} value={t}>{t}</MenuItem>)}
-                  </Select>
-                </FormControl>
-
-                {placeholders.length > 0 && (
-                  <>
-                    <TextField label="Nombre del Nuevo Documento" value={documentName} onChange={(e) => setDocumentName(e.target.value)} fullWidth />
-                    <FormControl fullWidth>
-                      <InputLabel>Asignar a Asunto</InputLabel>
-                      <Select value={selectedProjectId} label="Asignar a Asunto" onChange={(e) => setSelectedProjectId(e.target.value)}>
-                        {projects.map(p => <MenuItem key={p._id} value={p._id}>{p.name}</MenuItem>)}
-                      </Select>
-                    </FormControl>
-                  </>
-                )}
-              </Stack>
-            </Paper>
-
-            {placeholders.length > 0 && (
-              <Button variant="contained" color="primary" onClick={handleGenerateDocument} sx={{ mt: 3 }} disabled={loading}>
-                {loading ? <CircularProgress size={24} /> : "Generar Documento"}
-              </Button>
-            )}
-          </Grid>
+  {
+    placeholders.length > 0 && (
+      <Button
+        variant="contained"
+        color="primary"
+        onClick={handleGenerateDocument}
+        sx={{ mt: 3 }}
+        disabled={loading}
+        className="light-metal-btn-rect"
+      >
+        {loading ? <CircularProgress size={24} /> : "Generar Documento"}
+      </Button>
+    )
+  }
+          </Grid >
 
           <Grid item xs={12} md={7}>
             <Typography variant="h6" gutterBottom>Campos de la Plantilla</Typography>
@@ -666,14 +477,15 @@ function Dashboard() {
               )}
             </Paper>
           </Grid>
-        </Grid>
-      )}
+        </Grid >
+      )
+}
 
-      {/* The SourceManagement component used to be rendered here for tab === 2 */}
+{/* The SourceManagement component used to be rendered here for tab === 2 */ }
 
-      {/* Render the ChatWidget */}
-      <ChatWidget />
-    </Box>
+{/* Render the ChatWidget */ }
+<ChatWidget />
+    </Box >
   );
 }
 
