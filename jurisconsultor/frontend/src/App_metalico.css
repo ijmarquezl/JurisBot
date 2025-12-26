@@ -414,3 +414,139 @@ body.light-mode button.MuiButton-containedPrimary {
 body.light-mode .MuiTab-root.Mui-selected {
     color: #00a8ff !important;
 }
+
+/* --- "SUPERNOVA" LIGHT MODE OVERRIDES (Nuclear Option v3) --- */
+
+/* 1. Global Typography & Structure */
+body.light-mode {
+    --console-text: #333 !important;
+    --console-bg: #f5f5f5 !important;
+    --console-panel-bg: #ffffff !important;
+    --console-glow: none !important;
+}
+
+/* Fix Sidebar Title Typography */
+.titulo-metalico {
+    font-size: 1.1rem !important;
+    /* Smaller size */
+    letter-spacing: 0.02em !important;
+    text-transform: none !important;
+    /* Remove ALL CAPS */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 0 10px;
+}
+
+/* 2. Sidebar & Navigation */
+body.light-mode .console-sidebar {
+    background: #f0f0f0 !important;
+    border-right: 1px solid #ccc !important;
+}
+
+/* Sidebar Links (Hardware Buttons) */
+body.light-mode .hardware-button {
+    background: linear-gradient(145deg, #ffffff, #e6e6e6) !important;
+    color: #444 !important;
+    border: 1px solid #ccc !important;
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1) !important;
+}
+
+body.light-mode .hardware-button:hover,
+body.light-mode .hardware-button.active {
+    background: #e6e6e6 !important;
+    color: #00a8ff !important;
+    /* Active Color (Blue) */
+    box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.1) !important;
+    border-color: #bbb !important;
+}
+
+/* Active Tab Indicator in Sidebar */
+body.light-mode .hardware-button.active .MuiListItemIcon-root {
+    color: #00a8ff !important;
+}
+
+/* 3. Global Button Contrast Fixes (CASCADE APPROACH) */
+
+/* Base: All Icon Buttons are Dark Gray */
+body.light-mode .MuiIconButton-root {
+    color: #555 !important;
+    background: transparent !important;
+    /* Ensure no accidental dark bg */
+}
+
+body.light-mode .MuiIconButton-root:hover {
+    background-color: rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Base: All Contained Buttons -> Light Gray + Dark Text */
+body.light-mode .MuiButton-contained {
+    background-color: #e0e0e0 !important;
+    color: #333 !important;
+    box-shadow: none !important;
+}
+
+/* Level 1: Primary Buttons -> Blue + White Text */
+body.light-mode .MuiButton-containedPrimary {
+    background-color: #1976d2 !important;
+    color: #ffffff !important;
+}
+
+/* Level 1: Secondary Buttons -> Purple + White Text */
+body.light-mode .MuiButton-containedSecondary {
+    background-color: #9c27b0 !important;
+    color: #ffffff !important;
+}
+
+/* Level 1: Error Buttons -> Red + White Text */
+body.light-mode .MuiButton-containedError {
+    background-color: #d32f2f !important;
+    color: #ffffff !important;
+}
+
+/* Text & Outlined Buttons */
+body.light-mode .MuiButton-text,
+body.light-mode .MuiButton-outlined {
+    color: #555 !important;
+    border-color: rgba(0, 0, 0, 0.23) !important;
+}
+
+/* 4. Tabs Visibility */
+body.light-mode .MuiTabs-root,
+body.light-mode .MuiTab-root {
+    color: #555 !important;
+    /* Unselected tabs */
+    background: transparent !important;
+}
+
+body.light-mode .MuiTab-root.Mui-selected {
+    color: #00a8ff !important;
+    /* Selected tab */
+    background-color: rgba(0, 168, 255, 0.1) !important;
+}
+
+/* 5. Specific Component Fixes */
+
+/* Theme Toggle Button (Moon/Sun) */
+body.light-mode .console-toggle-area .MuiIconButton-root {
+    border: 1px solid #ccc !important;
+    color: #333 !important;
+    background-color: #fff !important;
+}
+
+/* DataGrid / Tables */
+body.light-mode .MuiDataGrid-root,
+body.light-mode .MuiTable-root {
+    color: #333 !important;
+}
+
+body.light-mode .MuiTableCell-root {
+    color: #333 !important;
+}
+
+/* Fix "Detalles Adicionales" Box in Source Management */
+body.light-mode .MuiBox-root[style*="bgcolor: #f5f5f5"] {
+    color: #333 !important;
+    /* Ensure JSON text is visible */
+    border: 1px solid #ddd !important;
+}

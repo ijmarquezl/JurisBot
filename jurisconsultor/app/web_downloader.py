@@ -16,33 +16,80 @@ logger = logging.getLogger(__name__)
 SOURCES_COLLECTION = "scraping_sources"
 PDF_DIRECTORY = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'documentos_legales'))
 
-def find_pdf_link(page_url: str, html_content: str, pdf_link_contains: Optional[str] = None, pdf_link_ends_with: Optional[str] = None) -> str:
-    """
-    Finds a PDF link on a given HTML page based on 'contains' or 'ends with' criteria.
+def truncate_filename(filename: str, max_length: int = 200) -> str:
+    """Truncates a filename to a maximum length, preserving the extension."""
+    if len(filename) <= max_length:
+        return filename
     
-    Args:
-        page_url (str): The URL of the page to resolve relative links.
-        html_content (str): The HTML content of the page.
-        pdf_link_contains (str, optional): String that the PDF link must contain.
-        pdf_link_ends_with (str, optional): String that the PDF link must end with.
+    name, ext = os.path.splitext(filename)
+    if len(ext) > 10: # Safety check for weird extensions
+        ext = ext[:10]
         
-    Returns:
-        The absolute URL to the PDF, or None if not found.
+    available_length = max_length - len(ext)
+    truncated_name = name[:available_length]
+    return truncated_name + ext
+
+def find_pdf_link(page_url: str, html_content: str, pdf_link_contains: Optional[str] = None, pdf_link_ends_with: Optional[str] = None, depth: int = 0) -> str:
     """
+    Finds a PDF link on a given HTML page. Supports 1-level deep search.
+    """
+    logger.info(f"Scanning for PDF links on {page_url} (depth={depth})...")
     soup = BeautifulSoup(html_content, 'lxml')
+    
+    # 1. Search for Direct PDF Links
+    candidates = []
     for a_tag in soup.find_all('a', href=True):
         href = a_tag['href']
+        absolute_url = urljoin(page_url, href)
         
+        # Criteria match
         match_contains = pdf_link_contains and (pdf_link_contains in href)
         match_ends_with = pdf_link_ends_with and href.endswith(pdf_link_ends_with)
         
-        if match_contains or match_ends_with:
-            # Convert relative URL to absolute
+        # Implicit match: Ends with .pdf (case insensitive)
+        is_pdf = absolute_url.lower().endswith('.pdf')
+        
+        if (match_contains or match_ends_with) and is_pdf:
+            return absolute_url
+        
+        if is_pdf:
+            candidates.append(absolute_url)
+
+    # Return first specific candidate if any
+    if candidates:
+        logger.info(f"Found {len(candidates)} candidate PDF links. Using first: {candidates[0]}")
+        return candidates[0]
+
+    # 2. Deep Search (Level 2) - Only if depth == 0
+    # If no PDF found, look for "likely detail page" links and dive in.
+    if depth == 0:
+        logger.info("No direct PDF link found. Attempting Deep Search (Level 2)...")
+        potential_links = []
+        for a_tag in soup.find_all('a', href=True):
+            href = a_tag['href']
+            text = a_tag.get_text(strip=True).lower()
             absolute_url = urljoin(page_url, href)
-            # Basic check to ensure it's likely a PDF
-            if '.pdf' in absolute_url.lower():
-                return absolute_url
+            
+            # Keywords suggesting a detail page or download section
+            keywords = ['ver', 'detalle', 'descargar', 'documento', 'leer', 'texto', 'completo']
+            if any(k in text for k in keywords) or any(k in href.lower() for k in keywords):
+                potential_links.append(absolute_url)
+        
+        # Limit deep search to first 3 promising links to save time
+        for link in potential_links[:3]:
+            try:
+                logger.info(f"Deep Search: Diving into {link}...")
+                resp = requests.get(link, timeout=15, verify=False, headers={'User-Agent': 'Mozilla/5.0'})
+                if resp.status_code == 200:
+                    found_pdf = find_pdf_link(link, resp.text, pdf_link_contains, pdf_link_ends_with, depth=1)
+                    if found_pdf:
+                        logger.info(f"Deep Search SUCCESS! Found PDF at {found_pdf}")
+                        return found_pdf
+            except Exception as e:
+                logger.warning(f"Deep Search failed for {link}: {e}")
+
     return None
+
 
 def scrape_ordenjuridico_law(main_page_url: str, law_name: str) -> Optional[str]:
     """
@@ -137,11 +184,19 @@ def run_scraper():
     sources_collection = db[SOURCES_COLLECTION]
     
     logger.info(f"Scraping sources from database: '{db_name}'")
-    sources = list(sources_collection.find({"url": {"$ne": None}}))
+    # Fetch all active sources
+    sources = list(sources_collection.find({"url": {"$ne": None}, "status": {"$ne": "disabled"}}))
     logger.info(f"Found {len(sources)} sources to process.")
 
     for source in sources:
         source_id = source["_id"]
+        scraper_type = source.get('scraper_type', 'generic_html')
+
+        # SKIP Discovery Types (handled by scraper_agent)
+        if scraper_type and scraper_type.startswith('discovery_'):
+            logger.info(f"Skipping Discovery Source '{source['name']}' (handled by scraper_agent).")
+            continue
+
         logger.info(f"Processing source: {source['name']} (URL: {source['url']})")
         
         try:
@@ -151,9 +206,6 @@ def run_scraper():
             
             pdf_url = None
             
-            # --- Determine PDF URL based on scraper_type ---
-            scraper_type = source.get('scraper_type', 'generic_html')
-
             if scraper_type == 'ordenjuridico_special':
                 # Use specialized scraper for ordenjuridico.gob.mx
                 pdf_url = scrape_ordenjuridico_law(source['url'], source['name'])
@@ -169,7 +221,7 @@ def run_scraper():
                     pdf_url = source['pdf_direct_url']
                     logger.info(f"Using direct PDF URL: {pdf_url}")
                 else:
-                    # Option 2: Scrape HTML page for PDF link
+                    # Option 2: Scrape HTML page for PDF link (with Deep Search)
                     logger.info(f"Fetching HTML from {source['url']} to find PDF link...")
                     page_response = requests.get(source['url'], timeout=30, headers=headers, verify=False)
                     page_response.raise_for_status()
@@ -187,7 +239,6 @@ def run_scraper():
                     {"$set": {"status": "failed", "error_message": f"Unknown scraper type: {scraper_type}"}}
                 )
                 continue
-            # --- End Determine PDF URL ---
             
             if not pdf_url:
                 logger.warning(f"No PDF link found for source: {source['name']}. Check URL and matching criteria.")
@@ -222,15 +273,15 @@ def run_scraper():
             # 5. Process the update
             local_filename = source.get('local_filename')
             if not local_filename:
-                logger.error(f"Source '{source['name']}' is missing 'local_filename'. Cannot process.")
-                sources_collection.update_one(
-                    {"_id": source_id},
-                    {"$set": {"status": "failed", "error_message": "Missing local_filename."}}
-                )
-                continue
+                # Fallback if filename missing
+                safe_name = re.sub(r'[^a-zA-Z0-9]', '_', source['name'])
+                local_filename = f"{safe_name}.pdf"
+
+            # TRUNCATE FILENAME
+            local_filename = truncate_filename(local_filename)
+            logger.info(f"Using local filename: {local_filename}")
 
             # Delete old data before processing new file
-            # We assume public laws are not company-specific, so company_id is None
             delete_document_by_source(source_name=local_filename, db_type='public', company_id=None)
 
             # Save new file
@@ -251,7 +302,8 @@ def run_scraper():
                         "status": "success",
                         "last_known_hash": new_hash,
                         "last_downloaded_at": datetime.utcnow(),
-                        "error_message": None
+                        "error_message": None,
+                        "local_filename": local_filename # Update DB with truncated name
                     }
                 }
             )

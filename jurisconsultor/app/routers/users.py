@@ -16,6 +16,11 @@ router = APIRouter(
 @router.get("/", response_model=List[UserResponse])
 def list_company_users(current_user: UserInDB = Depends(get_current_user), db: Database = Depends(get_db)):
     """Lists all users in the current user's company."""
+    if current_user.role == 'superadmin':
+        # Superadmin sees ALL users
+        users_cursor = db.users.find({})
+        return [UserResponse(email=u.email, full_name=u.full_name, role=u.role) for u in [UserInDB(**user_data) for user_data in users_cursor]]
+
     if not current_user.company_id:
         raise HTTPException(status_code=400, detail="User is not associated with a company.")
     

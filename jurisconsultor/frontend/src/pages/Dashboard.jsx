@@ -254,14 +254,17 @@ function Dashboard() {
   const fetchGeneratedDocuments = useCallback(async () => {
     setLoading(true);
     try {
+      console.log(`Fetching documents for user: ${currentUser?.email} (Role: ${currentUser?.role}) with include_archived=${showArchivedDocuments}`);
       const res = await apiClient.get('/documents/', { params: { include_archived: showArchivedDocuments } });
+      console.log("Documents Response Data:", res.data);
       setGeneratedDocuments(res.data);
-    } catch {
+    } catch (err) {
+      console.error("Error fetching documents:", err);
       setError('Error al cargar documentos generados.');
     } finally {
       setLoading(false);
     }
-  }, [showArchivedDocuments]);
+  }, [showArchivedDocuments, currentUser]);
   const fetchTemplates = useCallback(async () => {
     try {
       const res = await apiClient.get('/templates/');

@@ -61,9 +61,15 @@ function SortableItem({ id, children }) {
                     position: 'absolute',
                     top: 8,
                     right: 8,
+                    zIndex: 10,
                     cursor: 'grab',
-                    color: 'text.secondary'
+                    backgroundColor: 'rgba(0,0,0,0.05)', // Subtle background for contrast
+                    color: 'text.secondary',
+                    '&:hover': {
+                        backgroundColor: 'rgba(0,0,0,0.1)',
+                    }
                 }}
+                size="small" // Minimize footprint
             >
                 <DragHandleIcon />
             </IconButton>
@@ -91,7 +97,7 @@ function ReportingDashboard({ users, companies, projects, documents }) {
     return (
         <Card>
             <CardContent>
-                <Typography variant="h6" gutterBottom>Reportes y Estadísticas</Typography>
+                <Typography variant="h6" gutterBottom sx={{ pr: 4 }}>Reportes y Estadísticas</Typography>
                 <Grid container spacing={2}>
                     <Grid item xs={6} md={3}><StatCard title="Total de Empresas" value={companies.length} /></Grid>
                     <Grid item xs={6} md={3}><StatCard title="Total de Usuarios" value={users.length} /></Grid>
@@ -573,7 +579,7 @@ function LogViewer() {
     return (
         <Card>
             <CardContent>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2, mr: 5 }}>
                     <Typography variant="h6" gutterBottom>Visor de Logs del Sistema</Typography>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <FormControl size="small" sx={{ minWidth: 180 }}>
@@ -630,7 +636,7 @@ function LLMUsageDashboard() {
     return (
         <Card>
             <CardContent>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, mr: 5 }}>
                     <Typography variant="h6">Uso de API OpenAI / LLM</Typography>
                     <IconButton onClick={fetchUsage} disabled={loading}><RefreshIcon /></IconButton>
                 </Box>
