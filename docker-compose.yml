@@ -66,7 +66,7 @@ services:
       LANGCHAIN_ENDPOINT: "https://api.smith.langchain.com"
       LANGCHAIN_API_KEY: ${LANGCHAIN_API_KEY}
       LANGCHAIN_PROJECT: "JurisConsultor_Agent"
-    command: [ "/bin/bash", "-c", "sleep 15 && uvicorn main:app --host 0.0.0.0 --port 8000" ]
+    command: [ "/bin/bash", "-c", "sleep 5 && uvicorn infrastructure.web.main:app --host 0.0.0.0 --port 8000" ]
     volumes:
       - ./jurisconsultor/documentos_legales:/docs
     networks:
@@ -97,7 +97,8 @@ services:
       BACKEND_API_URL: ${BACKEND_API_URL}
       LLM_URL: ${LLM_URL}
       EMBEDDING_MODEL_NAME: ${EMBEDDING_MODEL_NAME}
-    command: [ "python", "-u", "scheduler.py" ]
+      PYTHONPATH: /app
+    command: [ "python", "-u", "infrastructure/utils/scheduler.py" ]
     networks:
       jurisconsultor-net:
 
