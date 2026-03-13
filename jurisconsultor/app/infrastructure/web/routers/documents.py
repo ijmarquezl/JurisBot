@@ -11,7 +11,7 @@ from fastapi.responses import FileResponse
 from domain.models.models import GeneratedDocumentInDB, UserInDB, PyObjectId
 from infrastructure.web.dependencies import get_db, get_current_user
 from infrastructure.utils.utils import answer_with_rag, search_raw_documents, get_public_db_conn # New import
-import infrastructure.ai.tools as legacy_tools
+import infrastructure.ai.legacy_tools as legacy_tools
 
 logger = logging.getLogger(__name__)
 

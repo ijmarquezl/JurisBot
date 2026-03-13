@@ -46,8 +46,9 @@ services:
       # The backend app will need logic to select the correct tenant DB based on the user.
       PUBLIC_POSTGRES_URI: postgresql://${PUBLIC_POSTGRES_USER}:${PUBLIC_POSTGRES_PASSWORD}@postgres_public:5432/${PUBLIC_POSTGRES_DB}
       TENANT_A_POSTGRES_URI: postgresql://${TENANT_A_POSTGRES_USER}:${TENANT_A_POSTGRES_PASSWORD}@postgres_a:5432/${TENANT_A_POSTGRES_DB}
-      MONGO_URI: mongodb://${TENANT_MI_PRIMERA_EMPRESA_MONGO_USER}:${TENANT_MI_PRIMERA_EMPRESA_MONGO_PASSWORD}@mongodb_mi_primera_empresa:27017/${TENANT_MI_PRIMERA_EMPRESA_MONGO_DB}?authSource=admin
+      MONGO_URI: mongodb://user_${TENANT_MI_PRIMERA_EMPRESA_MONGO_DB}:${TENANT_MI_PRIMERA_EMPRESA_MONGO_PASSWORD}@mongodb_shared:27017/${TENANT_MI_PRIMERA_EMPRESA_MONGO_DB}?authSource=${TENANT_MI_PRIMERA_EMPRESA_MONGO_DB}
       MONGO_DB_NAME: ${TENANT_MI_PRIMERA_EMPRESA_MONGO_DB}
+      MONGO_MEMORY_DB_NAME: ${TENANT_MI_PRIMERA_EMPRESA_MONGO_DB}
 
       # --- App & Security Config ---
       SECRET_KEY: ${SECRET_KEY}
@@ -87,7 +88,7 @@ services:
       # to connect to databases and other services.
       PUBLIC_POSTGRES_URI: postgresql://${PUBLIC_POSTGRES_USER}:${PUBLIC_POSTGRES_PASSWORD}@postgres_public:5432/${PUBLIC_POSTGRES_DB}
       TENANT_A_POSTGRES_URI: postgresql://${TENANT_A_POSTGRES_USER}:${TENANT_A_POSTGRES_PASSWORD}@postgres_a:5432/${TENANT_A_POSTGRES_DB}
-      MONGO_URI: mongodb://${TENANT_MI_PRIMERA_EMPRESA_MONGO_USER}:${TENANT_MI_PRIMERA_EMPRESA_MONGO_PASSWORD}@mongodb_mi_primera_empresa:27017/${TENANT_MI_PRIMERA_EMPRESA_MONGO_DB}?authSource=admin
+      MONGO_URI: mongodb://user_${TENANT_MI_PRIMERA_EMPRESA_MONGO_DB}:${TENANT_MI_PRIMERA_EMPRESA_MONGO_PASSWORD}@mongodb_shared:27017/${TENANT_MI_PRIMERA_EMPRESA_MONGO_DB}?authSource=${TENANT_MI_PRIMERA_EMPRESA_MONGO_DB}
       MONGO_DB_NAME: ${TENANT_MI_PRIMERA_EMPRESA_MONGO_DB}
       SECRET_KEY: ${SECRET_KEY}
       ALGORITHM: ${ALGORITHM}
@@ -101,7 +102,8 @@ services:
     command: [ "python", "-u", "infrastructure/utils/scheduler.py" ]
     networks:
       jurisconsultor-net:
-
+    volumes:
+      - ./jurisconsultor/documentos_legales:/app/documentos_legales
 
   orchestrator:
     build:
@@ -124,6 +126,7 @@ services:
     environment:
       MONGO_URI: mongodb://${TENANT_MI_PRIMERA_EMPRESA_MONGO_USER}:${TENANT_MI_PRIMERA_EMPRESA_MONGO_PASSWORD}@mongodb_mi_primera_empresa:27017/${TENANT_MI_PRIMERA_EMPRESA_MONGO_DB}?authSource=admin
       MONGO_DB_NAME: ${TENANT_MI_PRIMERA_EMPRESA_MONGO_DB}
+      MONGO_SHARED_URI: mongodb://${MONGO_SHARED_ROOT_USERNAME:-root}:${MONGO_SHARED_ROOT_PASSWORD:-secure_root_password}@mongodb_shared:27017/?authSource=admin
     ports:
       - "8001:8000" # Puerto para el tráfico del servidor MCP
     depends_on:
@@ -172,10 +175,23 @@ services:
       jurisconsultor-net:
         ipv4_address: 172.25.0.16
 
+  mongodb_shared:
+    image: mongo:latest
+    container_name: mongodb_shared
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_SHARED_ROOT_USERNAME:-root}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_SHARED_ROOT_PASSWORD:-secure_root_password}
+    volumes:
+      - mongodb_shared_data:/data/db
+    networks:
+      jurisconsultor-net:
+        ipv4_address: 172.25.0.30
+
 volumes:
   postgres_public_data:
   postgres_tenant_a_data:
   mongodb_tenant_a_data:
+  mongodb_shared_data:
 
 
 networks:

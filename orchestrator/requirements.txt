@@ -1,5 +1,6 @@
+docker
 fastapi
 uvicorn
-docker
 pydantic
 python-slugify
+pymongo

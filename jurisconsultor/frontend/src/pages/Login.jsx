@@ -80,6 +80,11 @@ function Login() { // Removed onLogin prop
             >
               {loading ? <CircularProgress size={24} /> : 'Iniciar Sesión'}
             </Button>
+            <Box sx={{ mt: 2, textAlign: 'center', fontSize: '0.8rem', color: 'text.secondary' }}>
+              <Typography variant="body2">ADMINISTRADOR: admin@demo.com / admin1234</Typography>
+              <Typography variant="body2">LÍDER: lider@demo.com / lider1234</Typography>
+              <Typography variant="body2">MIEMBRO: miembro@demo.com / miembro1234</Typography>
+            </Box>
           </Stack>
           {error && <Typography color="error" sx={{ mt: 2 }} align="center">{error}</Typography>}
         </Box>

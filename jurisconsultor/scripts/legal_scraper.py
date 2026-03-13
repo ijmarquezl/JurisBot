@@ -78,11 +78,37 @@ def process_single_document(pdf_path: str, db_type: str, company_id: str = None)
         
     cur = conn.cursor()
 
+    if not os.path.exists(pdf_path):
+        logger.error(f"Document not found: {pdf_path}")
+        return
+
     try:
-        reader = PdfReader(pdf_path)
         text = ""
-        for page in reader.pages:
-            text += page.extract_text() + "\n"
+        ext = os.path.splitext(pdf_path)[1].lower()
+        
+        if ext == '.pdf':
+            reader = PdfReader(pdf_path)
+            for page in reader.pages:
+                text += page.extract_text() + "\n"
+        elif ext == '.docx':
+            try:
+                import docx
+                doc = docx.Document(pdf_path)
+                for para in doc.paragraphs:
+                    text += para.text + "\n"
+            except ImportError:
+                logger.error("python-docx is not installed. Cannot process .docx files.")
+                return
+        elif ext == '.doc':
+            logger.warning(f"Legacy .doc format not supported (needs conversion): {pdf_path}")
+            return
+        else:
+             logger.warning(f"Unsupported file format {ext}: {pdf_path}")
+             return
+
+        if not text:
+            logger.warning(f"No text extracted from {pdf_path}")
+            return
 
         chunks = re.split(r'(?=Artículo \d+\.?-?)', text)
         processed_chunks = [c.strip() for c in chunks if len(c.strip()) > 50]
@@ -128,14 +154,17 @@ def process_document_directory(pdf_directory: str, db_type: str, company_id: str
     """
     Processes and stores all legal documents from a directory into the specified database.
     """
-    pdf_files = glob.glob(os.path.join(pdf_directory, "*.pdf"))
-    if not pdf_files:
-        logger.warning(f"No PDF files found in the '{pdf_directory}' directory.")
+    files = []
+    for ext in ['*.pdf', '*.docx', '*.doc']:
+        files.extend(glob.glob(os.path.join(pdf_directory, ext)))
+    
+    if not files:
+        logger.warning(f"No document files found in the '{pdf_directory}' directory.")
         return
 
-    logger.info(f"Found {len(pdf_files)} PDF files to process in '{pdf_directory}'.")
-    for pdf_path in pdf_files:
-        process_single_document(pdf_path, db_type, company_id)
+    logger.info(f"Found {len(files)} files to process in '{pdf_directory}'.")
+    for file_path in files:
+        process_single_document(file_path, db_type, company_id)
     
     logger.info("\nProcessing complete for directory.")
 

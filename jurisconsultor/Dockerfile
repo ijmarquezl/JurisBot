@@ -12,13 +12,23 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Install Playwright browsers and dependencies
 # We need to install system dependencies for chromium
+# Install Playwright browsers and dependencies
+# We need to install system dependencies for chromium
 RUN playwright install --with-deps chromium
+
+# Install tools for legacy .doc support
+RUN apt-get update && apt-get install -y \
+    catdoc \
+    libmagic1 \
+    && rm -rf /var/lib/apt/lists/*
+# Note: antiword is often not in default slim repos, using catdoc as fallback
 
 # Copy the database migration script
 COPY db_migration.py .
 
 # Copy the rest of the application's code into the container
 COPY app .
+COPY ejemplos_legales ./ejemplos_legales
 COPY scripts ./scripts
 
 # Expose the port the app runs on

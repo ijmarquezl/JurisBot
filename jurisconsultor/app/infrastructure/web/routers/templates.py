@@ -4,7 +4,7 @@ from typing import List
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, status
 from domain.models.models import UserInDB
 from infrastructure.web.dependencies import get_current_user
-import infrastructure.ai.tools as tools
+import infrastructure.ai.legacy_tools as tools
 import json
 
 router = APIRouter(

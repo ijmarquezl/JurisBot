@@ -14,7 +14,7 @@ from scripts.legal_scraper import process_single_document, delete_document_by_so
 logger = logging.getLogger(__name__)
 
 SOURCES_COLLECTION = "scraping_sources"
-PDF_DIRECTORY = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'documentos_legales'))
+PDF_DIRECTORY = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'documentos_legales'))
 
 def truncate_filename(filename: str, max_length: int = 200) -> str:
     """Truncates a filename to a maximum length, preserving the extension."""
@@ -46,18 +46,30 @@ def find_pdf_link(page_url: str, html_content: str, pdf_link_contains: Optional[
         match_contains = pdf_link_contains and (pdf_link_contains in href)
         match_ends_with = pdf_link_ends_with and href.endswith(pdf_link_ends_with)
         
-        # Implicit match: Ends with .pdf (case insensitive)
-        is_pdf = absolute_url.lower().endswith('.pdf')
+        # Implicit match: Ends with .pdf, .doc, or .docx (case insensitive)
+        lower_href = absolute_url.lower()
+        is_doc = lower_href.endswith('.pdf') or lower_href.endswith('.doc') or lower_href.endswith('.docx')
         
-        if (match_contains or match_ends_with) and is_pdf:
+        if (match_contains or match_ends_with) and is_doc:
             return absolute_url
         
-        if is_pdf:
+        if is_doc:
             candidates.append(absolute_url)
 
-    # Return first specific candidate if any
+    # Return preferred candidate (Prioritize PDF over DOC/DOCX)
     if candidates:
-        logger.info(f"Found {len(candidates)} candidate PDF links. Using first: {candidates[0]}")
+        # Filter for Priority 1: .pdf or 'descargaPDF'
+        priority_candidates = [
+            c for c in candidates 
+            if c.lower().endswith('.pdf') or 'descargapdf' in c.lower()
+        ]
+        
+        if priority_candidates:
+             logger.info(f"Found {len(priority_candidates)} priority PDF candidates. Using first: {priority_candidates[0]}")
+             return priority_candidates[0]
+             
+        # Fallback to DOC/DOCX
+        logger.info(f"No PDF found, falling back to Word document: {candidates[0]}")
         return candidates[0]
 
     # 2. Deep Search (Level 2) - Only if depth == 0
@@ -206,7 +218,12 @@ def run_scraper():
             
             pdf_url = None
             
-            if scraper_type == 'ordenjuridico_special':
+            # Priority 0: If we already have the DIRECT PDF URL (e.g. from Scraper Agent), use it!
+            if source.get('pdf_direct_url'):
+                pdf_url = source['pdf_direct_url']
+                logger.info(f"Using pre-resolved direct PDF URL: {pdf_url}")
+            
+            elif scraper_type == 'ordenjuridico_special':
                 # Use specialized scraper for ordenjuridico.gob.mx
                 pdf_url = scrape_ordenjuridico_law(source['url'], source['name'])
                 if not pdf_url:

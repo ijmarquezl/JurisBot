@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 class LawItem(TypedDict):
     name: str
     selector_id: str
+    href: str # NEW: capture the link
     original_url: str # Main page URL
     pdf_url: Optional[str]
     status: str # 'found', 'processed', 'failed'
@@ -73,16 +74,31 @@ async def scan_page_node(state: ScraperState):
     # We use the browser tool to get all links
     elements = await extract_interactive_elements(url, selector=selector)
 
+    # FALLBACK: If specific selector yields nothing, try generic 'a' tag
+    if not elements and selector != "a":
+        logger.info(f"Specific selector {selector} yielded 0 elements. Retrying with generic 'a' selector...")
+        elements = await extract_interactive_elements(url, selector="a")
+
     logger.info(f"Found {len(elements)} elements.")
 
     candidates = []
     for el in elements:
         # Filter obvious noise
-        if len(el['text']) < 5: continue
+        text = el['text']
+        if len(text) < 5: continue
+
+        # Heuristic Garbage Filter
+        garbage_keywords = ["anterior", "siguiente", "next", "previous", "home", "inicio", "contacto", "mapa", "índice", "regresar", "login", "ingresar", "buscar"]
+        if any(k in text.lower() for k in garbage_keywords):
+            continue
+
+        # Heuristic Positive Filter (Optional: prioritize but don't discard if not present yet)
+        # We keep anything that survives the negative filter.
 
         candidates.append({
             "name": el['text'],
             "selector_id": el['id'],
+            "href": el['href'], # CAPTURE HREF
             "original_url": url,
             "pdf_url": None,
             "status": "found"
@@ -95,55 +111,60 @@ async def filter_laws_node(state: ScraperState):
     Uses LLM to verify and normalize the found items.
     """
     candidates = state['laws']
-    logger.info(f"Filtering {len(candidates)} candidates with LLM...")
-
-    # To avoid blowing up the context window or taking too long,
-    # we'll process in batches or just use the LLM to 'judge' the list structure if small.
-    # Given potentially hundreds of laws, passing *all* to the LLM is risky.
-    # However, the user explicitly asked for LLM reasoning.
-
-    # Let's perform a lightweight heuristic filter first, then asking LLM to confirm the *pattern*.
-    # Actually, let's pick a sample of 5 items and ask the LLM if they look like laws.
-    # If yes, we assume the selector was good.
+    logger.info(f"Filtering {len(candidates)} candidates with heuristics & LLM...")
 
     if not candidates:
         return {"laws": []}
 
-    sample = candidates[:5]
-    sample_text = "\n".join([f"- {c['name']} (ID: {c['selector_id']})" for c in sample])
-
     llm = get_llm()
-    prompt = f"""
-    Analyze the following list of items extracted from a government website:
-    {sample_text}
+    valid_laws = []
+    
+    # Process in batches to avoid context limit
+    BATCH_SIZE = 20
+    
+    for i in range(0, len(candidates), BATCH_SIZE):
+        batch = candidates[i:i+BATCH_SIZE]
+        batch_text = "\n".join([f"{idx}. {c['name']} (HREF: {c.get('href', 'N/A')})" for idx, c in enumerate(batch)])
+        
+        prompt = f"""
+        Analyze the following list of links from a government website. 
+        Identify which ones are likely links to **DOWNLOADABLE LEGAL DOCUMENTS** (Laws, Codes, Regulations, Constitutions).
+        Ignore navigation links, menus, or general pages.
+        
+        Items:
+        {batch_text}
+        
+        Return a JSON object with a single key "valid_indices" containing the LIST of integers (from the list above) that are valid legal documents.
+        Example: {{"valid_indices": [0, 2, 5]}}
+        """
+        
+        try:
+            response = await llm.ainvoke([HumanMessage(content=prompt)])
+            content = response.content
+            if "```json" in content:
+                content = content.split("```json")[1].split("```")[0].strip()
+            elif "```" in content:
+                content = content.split("```")[1].split("```")[0].strip()
+            
+            analysis = json.loads(content)
+            indices = analysis.get("valid_indices", [])
+            
+            for idx in indices:
+                if 0 <= idx < len(batch):
+                    valid_laws.append(batch[idx])
+                    
+        except Exception as e:
+            logger.error(f"LLM filtering failed for batch {i}: {e}")
+            # Fallback: keep all if LLM fails? Or discard? 
+            # Safe fallback: keep items with 'ley', 'codigo', 'reglamento' in name or '.pdf' in href
+            for item in batch:
+                name_lower = item['name'].lower()
+                href_lower = item.get('href', '').lower()
+                if any(kw in name_lower for kw in ['ley', 'código', 'codigo', 'reglamento', 'constitución']) or '.pdf' in href_lower:
+                    valid_laws.append(item)
 
-    Are these items likely to be legal documents (laws, codes, regulations)?
-    Respond with a JSON object: {{"is_legal_content": true/false, "reason": "..."}}
-    """
-
-    try:
-        response = await llm.ainvoke([HumanMessage(content=prompt)])
-        content = response.content
-        # Basic cleanup if markdown json
-        if "```json" in content:
-            content = content.split("```json")[1].split("```")[0].strip()
-        elif "```" in content:
-             content = content.split("```")[1].split("```")[0].strip()
-
-        analysis = json.loads(content)
-
-        if not analysis.get("is_legal_content", False):
-            logger.warning(f"LLM decided content is not legal: {analysis.get('reason')}")
-            # If LLM rejects, we might want to flag or stop, but for now let's just log and proceed
-            # (better false positives than false negatives in this context, or maybe empty list?)
-            # return {"laws": []}
-    except Exception as e:
-        logger.error(f"LLM analysis failed: {e}")
-        # Proceed with heuristics
-
-    # We can also use the LLM to normalize names if needed, but 'slugify' in the next steps handles filenames.
-    # We return the candidates passed through.
-    return {"laws": candidates}
+    logger.info(f"Filtered down to {len(valid_laws)} valid laws.")
+    return {"laws": valid_laws}
 
 
 async def resolve_pdfs_node(state: ScraperState):
@@ -153,9 +174,12 @@ async def resolve_pdfs_node(state: ScraperState):
     laws = state['laws']
     updated_laws = []
 
-    for law in laws:
-        if law['selector_id']:
-            pdf_url = await resolve_law_pdf_url(state['url'], law['name'], law['selector_id'])
+    logger.info(f"Resolve PDFs Node: Processing {len(laws)} laws.") # TRACE
+    for i, law in enumerate(laws):
+        logger.info(f"Law {i}: Name='{law['name']}' Href='{law.get('href')}' ID='{law['selector_id']}'") # TRACE
+        if law.get('href') or law['selector_id']:
+            # Try to resolve PDF using href first, then ID logic
+            pdf_url = await resolve_law_pdf_url(state['url'], law['name'], law['selector_id'], law.get('href'))
             if pdf_url:
                 law['pdf_url'] = pdf_url
                 law['status'] = 'resolved'
@@ -186,8 +210,17 @@ async def update_db_node(state: ScraperState):
             # Check if exists
             existing = collection.find_one({"name": law['name']})
 
-            # Use slugify for safe filename
-            safe_filename = slugify(law['name']) + ".pdf"
+            # Use slugify for safe filename but preserve extension
+            ext = ".pdf"
+            if law['pdf_url']:
+                _, raw_ext = os.path.splitext(law['pdf_url'])
+                if raw_ext:
+                    # Clean extension (remove query params)
+                    raw_ext = raw_ext.split('?')[0].lower()
+                    if raw_ext in ['.pdf', '.doc', '.docx']:
+                        ext = raw_ext
+            
+            safe_filename = slugify(law['name']) + ext
 
             doc = {
                 "name": law['name'],
@@ -273,7 +306,10 @@ async def run_scraper_agent():
         try:
             result = await graph.ainvoke(initial_state)
             results.append(result)
+            # Update source status to success
+            collection.update_one({"_id": source["_id"]}, {"$set": {"status": "active", "last_run": datetime.utcnow()}})
         except Exception as e:
             logger.error(f"Error processing source {source['name']}: {e}", exc_info=True)
+            collection.update_one({"_id": source["_id"]}, {"$set": {"status": "failed", "last_error": str(e)}})
 
     return results

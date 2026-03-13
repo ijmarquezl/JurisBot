@@ -91,12 +91,12 @@ async def extract_interactive_elements(url: str, selector: str = "a") -> List[Di
         elements = await page.evaluate(f"""(selector) => {{
             const els = Array.from(document.querySelectorAll(selector));
             return els.map(el => ({{
-                text: el.innerText.trim(),
+                text: el.innerText.trim() || el.title || el.ariaLabel || 'No Text',
                 href: el.href || '',
                 id: el.id || '',
                 class: el.className || '',
                 onclick: el.getAttribute('onclick') || ''
-            }})).filter(item => item.text.length > 0);
+            }})).filter(item => item.href.length > 0);
         }}""", selector)
 
         await page.close()
@@ -106,41 +106,92 @@ async def extract_interactive_elements(url: str, selector: str = "a") -> List[Di
         logger.error(f"Error extracting elements: {e}")
         return []
 
-async def resolve_law_pdf_url(base_url: str, law_name: str, law_id: Optional[str] = None) -> Optional[str]:
+async def resolve_law_pdf_url(base_url: str, law_name: str, law_id: Optional[str] = None, href: Optional[str] = None) -> Optional[str]:
     """
     Attempts to resolve the PDF URL for a law, mimicking the user interaction or logic.
     If 'law_id' is provided, it tries the known logic first.
     If not, it might need to browse.
     """
-    # Based on the user requirement, the agent needs to 'click' or resolve the link.
-    # The existing logic in web_downloader.py suggests the ID contains the path.
-    # But if we want to be robust and 'agentic', we can try to actually click if logic fails?
-    # For now, let's implement the logic derivation in the tool, as clicking 500 links is slow.
-    # BUT, the Agent's job is to update the DB.
+    # 1. Direct HREF check (Generic Strategy)
+    if href:
+        logger.info(f"Resolving HREF: '{href}'") # DEBUG TRACE
+        lower_href = href.lower()
+        if lower_href.endswith('.pdf') or lower_href.endswith('.doc') or lower_href.endswith('.docx') or 'descargapdf' in lower_href:
+            if href.startswith('http'):
+                return href
+            # Resolve relative
+            from urllib.parse import urljoin
+            return urljoin(base_url, href)
+    
+    # 2. Deep Resolution via Page Visit (Fallback for unknown HTML pages)
+    # Exclude internal anchors or JS links to prevent analyzing non-pages like OrdenJuridico '#' links
+    if href and not (href.endswith('#') or 'javascript:' in href.lower()):
+        # Double check extensions again just in case (redundant but safe)
+        if not (href.lower().endswith('.pdf') or href.lower().endswith('.doc') or href.lower().endswith('.docx')):
+            try:
+                # Ensure absolute URL
+                from urllib.parse import urljoin
+                full_deep_url = urljoin(base_url, href)
+                
+                logger.info(f"Navigating to deep link to find document: {full_deep_url}")
+                manager = await BrowserManager.get_instance()
+                # Use a fresh context/page prevents side effects
+                page = await manager.new_page()
+                try:
+                    await page.goto(full_deep_url, wait_until="domcontentloaded", timeout=30000)
+                    
+                    # Find document links with heuristic prioritization
+                    doc_link = await page.evaluate("""() => {
+                        const anchors = Array.from(document.querySelectorAll('a'));
+                        let pdfLink = null;
+                        let docLink = null;
 
-    # Let's keep this tool simple for now: it just validates the URL if possible or returns the logic-derived one.
+                        for (const a of anchors) {
+                            const h = a.href.toLowerCase();
+                            // Priority 1: Direct PDF or explicit download keyword
+                            if (h.endsWith('.pdf') || h.includes('descargapdf')) {
+                                pdfLink = a.href;
+                                break; // Found best candidate
+                            }
+                            // Priority 2: Word documents (fallback)
+                            if (h.endsWith('.doc') || h.endsWith('.docx')) {
+                                if (!docLink) docLink = a.href;
+                            }
+                        }
+                        return pdfLink || docLink;
+                    }""")
+                    
+                    if doc_link:
+                        logger.info(f"Resolved deep link: {doc_link}")
+                        return doc_link
+                finally:
+                    await page.close()
+            except Exception as e:
+                # SPECIAL CASE: If navigation fails because it's a direct download, that's a WIN!
+                if "Download is starting" in str(e):
+                    logger.info(f"Direct download detected for {full_deep_url}. Returning as PDF URL.")
+                    return full_deep_url
+                
+                logger.error(f"Error deep resolving {href}: {e}")
 
-    # Reusing logic from web_downloader.py but as a standalone tool for the agent
+    # 3. Reusing specific logic for ordenjuridico if ID exists and deep resolution failed/skipped
     if law_id:
         try:
-            # Example id: '.././Documentos/Federal/wo17186.doc'
-            # Logic: Documentos/Federal/pdf/{filename}.pdf
-            parts = law_id.split('/')
-            filename = parts[-1]
-            if '.' in filename:
-                filename = filename.split('.')[0]
+             # Basic check to avoid false positives
+             if '/' not in law_id:
+                 return None 
+                 
+             # Logic: Documentos/Federal/pdf/{filename}.pdf
+             parts = law_id.split('/')
+             filename = parts[-1]
+             if '.' in filename:
+                 filename = filename.split('.')[0]
 
-            # The structure seems to be relative to the domain root or current path
-            # Current URL: https://www.ordenjuridico.gob.mx/leyes.php
-            # Logic in basic.js:
-            # function ver(doc) { ... window.open(doc ... }
-            # Wait, the ID in web_downloader was used to construct a PDF path.
-
-            # Let's trust the existing reverse-engineering for speed, but allow the Agent to use it.
-            pdf_path = f"Documentos/Federal/pdf/{filename}.pdf"
-            full_url = f"https://www.ordenjuridico.gob.mx/{pdf_path}"
-            return full_url
+             pdf_path = f"Documentos/Federal/pdf/{filename}.pdf"
+             full_url = f"https://www.ordenjuridico.gob.mx/{pdf_path}"
+             return full_url
         except Exception as e:
             logger.error(f"Error resolving PDF URL logic: {e}")
             return None
+
     return None
