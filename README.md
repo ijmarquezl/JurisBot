@@ -1,18 +1,23 @@
-# Jurisconsultor: Agente IA para Asesoría Legal
+# Jurisconsultor: Sistema Multi-Agente para Asesoría Legal (v0.2)
 
-Jurisconsultor es un sistema de agentes inteligentes impulsado por IA diseñado para asistir a abogados y profesionales del derecho. Su objetivo es facilitar la consulta eficiente de documentos legales, la gestión de proyectos y la generación de documentos jurídicos complejos, con una arquitectura segura y escalable.
+Jurisconsultor es un sistema avanzado impulsado por inteligencia artificial diseñado para asistir a abogados y profesionales del derecho. En su versión 0.2, ha evolucionado de un modelo monolítico a una **Arquitectura Multi-Agente** especializada, logrando mayor precisión y reduciendo drásticamente las alucinaciones.
+
+## Novedades en v0.2
+- **Arquitectura Multi-Agente**: 8 agentes especializados (Orquestador, Normativo, Procedimental, Doctrina, Síntesis, Adversarial, Redacción y Document Manager).
+- **Procesamiento Asíncrono**: Integración con **Celery** y **Redis** para manejar tareas complejas en segundo plano sin bloquear la aplicación.
+- **Soporte Multi-LLM**: Integración nativa con **OpenRouter** (ej. `openai/gpt-oss-20b:free`) y **Anthropic** (Claude), permitiendo flexibilidad en la elección del modelo de IA subyacente.
+- **Quality Gates**: 5 niveles de validación automatizada por un agente adversario para garantizar cero alucinaciones.
 
 ## Arquitectura (Multi-Tenant con Reverse Proxy)
 
-El proyecto utiliza una arquitectura de microservicios contenerizada con Docker Compose, diseñada para un entorno multi-tenant que garantiza el aislamiento de datos entre diferentes compañías.
+El proyecto utiliza una arquitectura de microservicios contenerizada con Docker Compose, diseñada para un entorno multi-tenant.
 
--   **`proxy` (Nginx)**: Nuevo servicio de reverse proxy. Es el único punto de entrada público a la aplicación (puerto 80). Enruta el tráfico al `frontend` o al `backend` internamente, proporcionando una capa de seguridad y abstracción.
--   **`frontend`**: Aplicación React que provee la interfaz de usuario. Es un servicio interno, accesible solo a través del `proxy`.
--   **`backend`**: API central en FastAPI. Contiene toda la lógica de negocio y orquesta a los agentes de IA. Es un servicio interno, accesible solo a través del `proxy`.
--   **`postgres_public`**: Base de datos PostgreSQL que almacena vectores de documentos legales públicos para el sistema RAG. Incluye la extensión `pgvector`.
--   **`mongodb_tenant_a`**: Base de datos MongoDB de ejemplo para el tenant 'A', que almacena usuarios, proyectos y conversaciones.
--   **`postgres_tenant_a`**: Base de datos PostgreSQL de ejemplo para el tenant 'A', que almacena vectores de documentos privados.
--   **Bases de Datos por Tenant (Dinámicas)**: El script `onboard_tenant.sh` permite crear dinámicamente nuevos servicios de bases de datos (PostgreSQL y MongoDB) para cada nueva compañía, asegurando el aislamiento de datos privados.
+-   **`proxy` (Nginx)**: Reverse proxy que enruta el tráfico al `frontend` o al `backend`. Es el único punto de entrada público.
+-   **`frontend`**: Aplicación React que provee la interfaz de usuario.
+-   **`backend`**: API central en FastAPI. Orquesta a los agentes de IA y gestiona las tareas de Celery.
+-   **`redis`**: Broker de mensajes para encolar y gestionar las tareas asíncronas de los agentes.
+-   **`postgres_public`**: Base de datos PostgreSQL que almacena vectores de documentos legales públicos (RAG).
+-   **Bases de Datos por Tenant (Dinámicas)**: MongoDB para gestión de usuarios/proyectos y PostgreSQL para vectores privados.
 
 ## Configuración de Entorno (`.env`)
 
