@@ -137,6 +137,18 @@ services:
       jurisconsultor-net:
         ipv4_address: 172.25.0.13
 
+  redis:
+    image: redis:7-alpine
+    container_name: jurisbot-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    networks:
+      jurisconsultor-net:
+        ipv4_address: 172.25.0.35
+
   postgres_public:
     image: pgvector/pgvector:pg13
     environment:
@@ -192,6 +204,7 @@ volumes:
   postgres_tenant_a_data:
   mongodb_tenant_a_data:
   mongodb_shared_data:
+  redis_data:
 
 
 networks:

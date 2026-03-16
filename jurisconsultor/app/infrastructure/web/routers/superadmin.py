@@ -56,7 +56,7 @@ def update_any_user(user_id: PyObjectId, user_update: UserUpdate, db: Database =
     if "password" in update_data:
         # This is NOT ideal. Refactor to use a password hashing function.
         # For now, demonstrating the flow.
-        from security import get_password_hash
+        from infrastructure.web.security import get_password_hash
         update_data["hashed_password"] = get_password_hash(update_data.pop("password"))
 
 

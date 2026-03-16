@@ -25,6 +25,7 @@ pytest-mock
 langchain==0.2.11
 langgraph==0.2.38
 langchain-openai==0.1.15
+langchain-anthropic
 langchain-community==0.2.0
 langgraph-checkpoint-mongodb==0.1.0
 APScheduler==3.10.4
