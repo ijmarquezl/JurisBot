@@ -8,6 +8,46 @@ Jurisconsultor es un sistema avanzado impulsado por inteligencia artificial dise
 - **Soporte Multi-LLM**: Integración nativa con **OpenRouter** (ej. `openai/gpt-oss-20b:free`) y **Anthropic** (Claude), permitiendo flexibilidad en la elección del modelo de IA subyacente.
 - **Quality Gates**: 5 niveles de validación automatizada por un agente adversario para garantizar cero alucinaciones.
 
+## Diagramas de Arquitectura y Flujo
+
+### 1. Arquitectura del Sistema
+El siguiente diagrama ilustra cómo interactúan los contenedores Docker y cómo el backend delega el trabajo pesado de IA a Celery/Redis.
+```mermaid
+graph TD
+    User([Usuario]) --> Proxy[Nginx Reverse Proxy:80]
+    Proxy --> Frontend[React Frontend]
+    Proxy --> Backend[FastAPI Backend]
+    
+    Backend --> Redis[Redis Broker]
+    Redis --> Celery[Celery Workers]
+    Celery --> Agents[8 Agentes IA]
+    
+    Backend --> Mongo[(MongoDB Multi-Tenant)]
+    Backend --> Postgres[(PostgreSQL RAG Público)]
+    Backend --> PostgresPrivate[(PostgreSQL RAG Privado)]
+    
+    Agents --> LLM((OpenRouter / Anthropic))
+```
+
+### 2. Flujo de Trabajo Multi-Agente
+Este diagrama de secuencia muestra el ciclo de vida de una consulta legal a través del ecosistema de agentes.
+```mermaid
+sequenceDiagram
+    participant User
+    participant Orchestrator as Agente Orquestador
+    participant Agents as Agentes Especializados
+    participant Gates as Quality Gates (Adversarial)
+    participant Redaccion as Agente Redacción
+    
+    User->>Orchestrator: Solicita análisis legal complejo
+    Orchestrator->>Agents: Delega investigación (Normativo, Procedimental, etc.)
+    Agents-->>Orchestrator: Entregan hallazgos premiliminares
+    Orchestrator->>Gates: Somete hallazgos a validación estricta
+    Gates-->>Orchestrator: Otorga pase o exige correcciones
+    Orchestrator->>Redaccion: Envía datos 100% validados
+    Redaccion-->>User: Entrega documento final depurado
+```
+
 ## Arquitectura (Multi-Tenant con Reverse Proxy)
 
 El proyecto utiliza una arquitectura de microservicios contenerizada con Docker Compose, diseñada para un entorno multi-tenant.
