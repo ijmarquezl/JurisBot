@@ -27,7 +27,13 @@ apiClient.interceptors.response.use(
   },
   async (error) => {
     const originalRequest = error.config;
-    if (error.response.status === 401 && !originalRequest._retry) {
+    
+    // Don't try to refresh if the request was to the token endpoint itself
+    if (originalRequest.url === '/token') {
+      return Promise.reject(error);
+    }
+    
+    if (error.response && error.response.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
       try {
         const refreshToken = localStorage.getItem('refreshToken');

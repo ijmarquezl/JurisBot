@@ -73,6 +73,28 @@
 - Estilización de enlaces de navegación como botones físicos con indicadores LED.
 - Soporte completo de la estructura "Consola" para temas Claro y Oscuro.
 
+** V 0.1.4 (Seguridad y Refactorización Core) **
+- Refactorización del código para crear `utils.py` compartido para embeddings.
+- Mejora de seguridad en consultas SQL y prevención de inyecciones.
+- Creación de documentación estandarizada (`README.md` y `.env.example`).
+- Solución de problemas de dependencias y ejecución en contenedor (Docker build fixes).
+
+** V 0.1.5 (Mejoras en el Scraper y Base de Datos) **
+- Mejora de la estrategia de "chunking" en `legal_scraper.py` (ahora basado en artículos en lugar de un número fijo de tokens).
+- Reprocesamiento completo de todos los documentos legales usando la nueva estrategia.
+- Creación y ajuste del script de migración de base de datos (`db_migration.py`).
+
+** V 0.1.6 (Estabilización de Autenticación) **
+- Resolución de bug crítico de "redirección infinita" en el login del frontend (interceptor de tokens 401).
+- Sincronización correcta de hashes de contraseñas de demostración en MongoDB.
+
+** V 0.2.0 (RELEASE: Arquitectura Multi-Agente JurisBot) **
+- Integración oficial del agente RAG (`rag_agent.py`) y arquitectura multi-agente.
+- Finalización de las pruebas del agente iterativo.
+- Actualización de diagramas de sistema y flujos de iteración entre agentes.
+- Fusión de las ramas de desarrollo y etiquetado oficial de la versión v0.2.0.
+
 ** Next Steps **
-- Recopilación de feedback de usuarios sobre la nueva interfaz.
+- Realizar pruebas de estrés a la base de datos de Postgres y MongoDB.
+- Optimizar el flujo conversacional y contexto de memoria del agente principal.
 - Refinamiento de animaciones y transiciones de la consola.
