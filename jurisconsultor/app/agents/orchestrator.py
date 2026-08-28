@@ -1,10 +1,11 @@
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from .base import BaseAgent
 
 class OrchestratorAgent(BaseAgent):
     """
     Recibe consulta, analiza área del derecho, descompone en subtareas,
-    asigna agentes especializados, genera PLAN DE TRABAJO estructurado.
+    asigna agentes especializados, genera PLAN DE TRABAJO estructurado y
+    extrae el tipo de documento si se solicita.
     """
     
     def __init__(self, model: str = "openai/gpt-oss-20b:free"):
@@ -24,14 +25,15 @@ class OrchestratorAgent(BaseAgent):
             agentes_requeridos: list[str] = Field(description="Lista de agentes a utilizar: normativo, procedimental, doctrinal, sintesis, adversarial, redaccion")
             plan_trabajo: list[dict] = Field(description="Lista de diccionarios con: paso (int), agente (str), tarea (str)")
             prioridad: str = Field(description="Ej. estándar, urgente, alta")
+            tipo_documento: Optional[str] = Field(description="Tipo de documento legal a redactar si se pide (ej. 'Contrato de Arrendamiento', 'Demanda Civil', 'Contrato Compra Venta', 'Contestacion Demanda Nulidad'), o null si no aplica.", default=None)
             
         parser = PydanticOutputParser(pydantic_object=OrchestratorOutput)
         
         prompt = PromptTemplate(
-            template="Analiza si la siguiente consulta legal es de índole {area_ejemplo}.\\n"
-                     "Determina los agentes requeridos y el plan de trabajo.\\n"
-                     "Genera la salida de acuerdo a este formato estricto:\\n{format_instructions}\\n"
-                     "Consulta:\\n{consulta}\\n",
+            template="Analiza si la siguiente consulta legal es de índole {area_ejemplo}.\n"
+                     "Determina los agentes requeridos, el plan de trabajo, y extrae el 'tipo_documento' a redactar si corresponde.\n"
+                     "Genera la salida de acuerdo a este formato estricto:\n{format_instructions}\n"
+                     "Consulta:\n{consulta}\n",
             input_variables=["consulta", "area_ejemplo"],
             partial_variables={"format_instructions": parser.get_format_instructions()}
         )
@@ -46,11 +48,12 @@ class OrchestratorAgent(BaseAgent):
                 "area_derecho": parsed_output.area_derecho,
                 "agentes_requeridos": parsed_output.agentes_requeridos,
                 "plan_trabajo": parsed_output.plan_trabajo,
-                "prioridad": parsed_output.prioridad
+                "prioridad": parsed_output.prioridad,
+                "tipo_documento": parsed_output.tipo_documento
             }
         except Exception as e:
             logger.error(f"Error in OrchestratorAgent: {e}")
-            result = {"status": "error", "error": str(e), "agentes_requeridos": ["normativo"]}
+            result = {"status": "error", "error": str(e), "agentes_requeridos": ["normativo"], "tipo_documento": None}
             
         self.log_execution(task, {"status": "success"})
         return result

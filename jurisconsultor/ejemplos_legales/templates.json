@@ -1,0 +1,166 @@
+{
+    "denuncia_alimentos_al_ascendente_deudor": {
+        "file_path": "Denuncias/Denuncia Alimentos al Ascendente Deudor Muestra.docx",
+        "description": "Denuncia Alimentos al Ascendente Deudor Muestra"
+    },
+    "denuncia_juicio_testamentario": {
+        "file_path": "Denuncias/Denuncia Juicio Testamentario Muestra.docx",
+        "description": "Denuncia Juicio Testamentario Muestra"
+    },
+    "denuncia_de_hechos": {
+        "file_path": "Denuncias/Denuncia de Hechos Muestra.docx",
+        "description": "Denuncia de Hechos Muestra"
+    },
+    "apelacion_auto_presentados_hnos_decuyus": {
+        "file_path": "Denuncias/Apelacion Auto Presentados Hnos deCuyus Muestra.docx",
+        "description": "Apelacion Auto Presentados Hnos deCuyus Muestra"
+    },
+    "escrito_objeta_dictamen_pericial": {
+        "file_path": "Escritos/Escrito Objeta Dictamen Pericial Muestra.docx",
+        "description": "Escrito Objeta Dictamen Pericial Muestra"
+    },
+    "poder_especial_irrevocable": {
+        "file_path": "Escritos/Poder Especial Irrevocable Muestra.docx",
+        "description": "Poder Especial Irrevocable Muestra"
+    },
+    "testamento_publico": {
+        "file_path": "Escritos/Testamento Publico Muestra.docx",
+        "description": "Testamento Publico Muestra"
+    },
+    "escrito_licencia_cercar_predio": {
+        "file_path": "Escritos/Escrito Licencia Cercar Predio Muestra.docx",
+        "description": "Escrito Licencia Cercar Predio Muestra"
+    },
+    "capitulaciones_matrimoniales": {
+        "file_path": "Escritos/Capitulaciones Matrimoniales Muestra.docx",
+        "description": "Capitulaciones Matrimoniales Muestra"
+    },
+    "escrito_declaracion_rebeldia_del_demandado": {
+        "file_path": "Escritos/Escrito Declaracion Rebeldia del Demandado Muestra.docx",
+        "description": "Escrito Declaracion Rebeldia del Demandado Muestra"
+    },
+    "procedimiento_acreditacion_concubinato": {
+        "file_path": "Escritos/Procedimiento Acreditacion Concubinato Muestra.docx",
+        "description": "Procedimiento Acreditacion Concubinato Muestra"
+    },
+    "diligencias_de_jurisdiccion_voluntaria_cesion_de_derechos": {
+        "file_path": "Diligencias/Diligencias de Jurisdiccion Voluntaria Cesion de Derechos Muestra.docx",
+        "description": "Diligencias de Jurisdiccion Voluntaria Cesion de Derechos Muestra"
+    },
+    "diligencias_de_consignacion_de_pago": {
+        "file_path": "Diligencias/Diligencias de Consignacion de Pago Muestra.docx",
+        "description": "Diligencias de Consignacion de Pago Muestra"
+    },
+    "diligencias_de_jurisdiccion_voluntaria_informacion_judicial": {
+        "file_path": "Diligencias/Diligencias de Jurisdiccion Voluntaria Informacion judicial Muestra.docx",
+        "description": "Diligencias de Jurisdiccion Voluntaria Informacion judicial Muestra"
+    },
+    "diligencias_de_jurisdiccion_voluntaria_dependencia_economica": {
+        "file_path": "Diligencias/Diligencias de Jurisdiccion Voluntaria Dependencia Economica Muestra.docx",
+        "description": "Diligencias de Jurisdiccion Voluntaria Dependencia Economica Muestra"
+    },
+    "contrato_de_compra_venta_terreno_plazos": {
+        "file_path": "Contratos/Contrato de Compra Venta Terreno Plazos Muestra.docx",
+        "description": "Contrato de Compra Venta Terreno Plazos Muestra"
+    },
+    "contrato_servicios_asimilados_a_salarios": {
+        "file_path": "Contratos/Contrato Servicios Asimilados a Salarios Muestra.docx",
+        "description": "Contrato Servicios Asimilados a Salarios Muestra"
+    },
+    "contrato_compra_venta_pagina_web": {
+        "file_path": "Contratos/Contrato Compra Venta Pagina Web Muestra.docx",
+        "description": "Contrato Compra Venta Pagina Web Muestra"
+    },
+    "contrato_reconocimiento_de_deuda": {
+        "file_path": "Contratos/Contrato Reconocimiento de Deuda Muestra.docx",
+        "description": "Contrato Reconocimiento de Deuda Muestra"
+    },
+    "contrato_servicios_entre_empresas": {
+        "file_path": "Contratos/Contrato Servicios Entre Empresas Muestra.docx",
+        "description": "Contrato Servicios Entre Empresas Muestra"
+    },
+    "contrato_confidencialidad_compra_venta": {
+        "file_path": "Contratos/Contrato Confidencialidad compra venta Muestra.docx",
+        "description": "Contrato Confidencialidad compra venta Muestra"
+    },
+    "contrato_compra_venta_garantia_hipotecaria": {
+        "file_path": "Contratos/Contrato compra venta garantia hipotecaria Muestra.docx",
+        "description": "Contrato compra venta garantia hipotecaria Muestra"
+    },
+    "contrato_concesion_taxi": {
+        "file_path": "Contratos/Contrato Concesion Taxi Muestra.docx",
+        "description": "Contrato Concesion Taxi Muestra"
+    },
+    "contrato_deposito_mercantil": {
+        "file_path": "Contratos/Contrato Deposito Mercantil Muestra.docx",
+        "description": "Contrato Deposito Mercantil Muestra"
+    },
+    "acuerdo_confidencialidad_laboral": {
+        "file_path": "Contratos/Acuerdo Confidencialidad Laboral Muestra.docx",
+        "description": "Acuerdo Confidencialidad Laboral Muestra"
+    },
+    "contrato_servicios_abogados": {
+        "file_path": "Contratos/Contrato Servicios Abogados Muestra.docx",
+        "description": "Contrato Servicios Abogados Muestra"
+    },
+    "contrato_servicios_profesionales": {
+        "file_path": "Contratos/Contrato Servicios Profesionales Muestra.docx",
+        "description": "Contrato Servicios Profesionales Muestra"
+    },
+    "contrato_arrendamiento_condominio": {
+        "file_path": "Contratos/Contrato Arrendamiento Condominio Muestra.docx",
+        "description": "Contrato Arrendamiento Condominio Muestra"
+    },
+    "contrato_arrendamiento_cajon_estacionamiento": {
+        "file_path": "Contratos/Contrato Arrendamiento Cajon Estacionamiento Muestra.docx",
+        "description": "Contrato Arrendamiento Cajon Estacionamiento Muestra"
+    },
+    "contrato_individual_trabajo_indeterminado": {
+        "file_path": "Contratos/Contrato Individual Trabajo Indeterminado Muestra.docx",
+        "description": "Contrato Individual Trabajo Indeterminado Muestra"
+    },
+    "contestacion_demanda_nulidad_escrituras": {
+        "file_path": "Demandas/Contestacion Demanda Nulidad Escrituras Muestra.docx",
+        "description": "Contestacion Demanda Nulidad Escrituras Muestra"
+    },
+    "demanda_de_amparo_indirecto_cuentas_congeladas": {
+        "file_path": "Demandas/Demanda de Amparo Indirecto Cuentas Congeladas Muestra.docx",
+        "description": "Demanda de Amparo Indirecto Cuentas Congeladas Muestra"
+    },
+    "demanda_nulidad_de_testamento": {
+        "file_path": "Demandas/Demanda Nulidad de Testamento Muestra.docx",
+        "description": "Demanda Nulidad de Testamento Muestra"
+    },
+    "demanda_de_amparo": {
+        "file_path": "Demandas/Demanda de Amparo Muestra.docx",
+        "description": "Demanda de Amparo Muestra"
+    },
+    "demanda_de_visita_y_convivencia": {
+        "file_path": "Demandas/Demanda de Visita y Convivencia Muestra.docx",
+        "description": "Demanda de Visita y Convivencia Muestra"
+    },
+    "demanda_nulidad_contrato_compra_venta": {
+        "file_path": "Demandas/Demanda Nulidad Contrato Compra Venta Muestra.docx",
+        "description": "Demanda Nulidad Contrato Compra Venta Muestra"
+    },
+    "contestacion_pension_alimenticia_reconvencion_convivencia": {
+        "file_path": "Demandas/Contestacion Pension Alimenticia Reconvencion Convivencia Muestra.docx",
+        "description": "Contestacion Pension Alimenticia Reconvencion Convivencia Muestra"
+    },
+    "demanda_fiador_rentas_vencidas": {
+        "file_path": "Demandas/Demanda Fiador Rentas Vencidas Muestra.docx",
+        "description": "Demanda Fiador Rentas Vencidas Muestra"
+    },
+    "demanda_divorcio_voluntario_y_convenio": {
+        "file_path": "Demandas/Demanda Divorcio Voluntario y Convenio Muestra.docx",
+        "description": "Demanda Divorcio Voluntario y Convenio Muestra"
+    },
+    "demanda_de_amparo_biometricos_celulares": {
+        "file_path": "Demandas/Demanda de Amparo Biometricos Celulares Muestra.docx",
+        "description": "Demanda de Amparo Biometricos Celulares Muestra"
+    },
+    "demanda_penal_inclumplimiento_pension_alimenticia": {
+        "file_path": "Demandas/Demanda Penal Inclumplimiento Pension Alimenticia Muestra.docx",
+        "description": "Demanda Penal Inclumplimiento Pension Alimenticia Muestra"
+    }
+}

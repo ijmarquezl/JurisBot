@@ -191,7 +191,10 @@ function Dashboard() {
   const [includeArchivedProjects, setIncludeArchivedProjects] = useState(false);
   // --- State for Form-Based Generation ---
   const [templates, setTemplates] = useState([]);
-  const [uploadingTemplate, setUploadingTemplate] = useState(false); // New state
+  const [uploadingTemplate, setUploadingTemplate] = useState(false);
+  const [dynamicTopic, setDynamicTopic] = useState('');
+  const [dynamicDocType, setDynamicDocType] = useState('Escrito Legal');
+  const [uploadingDoc, setUploadingDoc] = useState(false);
 
   // --- State for Form-Based Generation ---
   // const [templates, setTemplates] = useState([]); // Removed duplicate
@@ -414,6 +417,57 @@ function Dashboard() {
     }
   };
 
+  const handleUploadDocument = async (event) => {
+    const file = event.target.files[0];
+    if (!file || !selectedProjectId) {
+      setError("Debes seleccionar un Asunto (Proyecto) antes de subir el archivo.");
+      return;
+    }
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('project_id', selectedProjectId);
+
+    setUploadingDoc(true);
+    try {
+      await apiClient.post('/documents/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      fetchGeneratedDocuments();
+      alert("Documento subido e indexado para búsquedas (RAG) correctamente.");
+    } catch (err) {
+      console.error("Error uploading document:", err);
+      setError('Error al subir el documento.');
+    } finally {
+      setUploadingDoc(false);
+    }
+  };
+
+  const handleGenerateDynamic = async () => {
+    if (!documentName.trim() || !selectedProjectId || !dynamicTopic.trim()) {
+      setError("Todos los campos (Nombre, Asunto y Hechos/Topic) son obligatorios.");
+      return;
+    }
+    setLoading(true);
+    setError('');
+    try {
+      await apiClient.post('/documents/generate', {
+        project_id: selectedProjectId,
+        document_name: documentName,
+        topic: dynamicTopic,
+        document_type: dynamicDocType
+      });
+      await fetchGeneratedDocuments();
+      setDocumentName('');
+      setDynamicTopic('');
+      alert("¡Documentos Dinámicos generados exitosamente en DOCX y PDF!");
+    } catch (err) {
+      logger.error("Error fetching dynamic doc:", err);
+      setError(err.response?.data?.detail || 'Error al generar el documento dinámico.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleProjectArchiveToggle = async (projectId, isArchived) => {
     setLoading(true);
     try {
@@ -470,7 +524,8 @@ function Dashboard() {
       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
         <Tabs value={tab} onChange={handleTabChange} className="light-metal-tabs">
           <Tab label="Asuntos y Tareas" />
-          <Tab label="Generador de Documentos" />
+          <Tab label="Generador de Plantillas" />
+          <Tab label="Redacción IA y Archivos (V0.2.1)" />
         </Tabs>
       </Box>
 
@@ -682,7 +737,104 @@ function Dashboard() {
       )
       }
 
-      {/* The SourceManagement component used to be rendered here for tab === 2 */}
+      {tab === 2 && (
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={6}>
+            <Typography variant="h6" gutterBottom>Subir y Analizar Archivos (.docx / .pdf)</Typography>
+            <Paper elevation={2} sx={{ p: 2, mb: 3 }}>
+              <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+                Sube expedientes y documentos. Nuestro motor de IA (RAG) los leerá e indexará para que estén disponibles en el asistente conversacional.
+              </Typography>
+              <FormControl fullWidth sx={{ mb: 2 }}>
+                <InputLabel>Asunto (Obligatorio)</InputLabel>
+                <Select value={selectedProjectId} label="Asunto (Obligatorio)" onChange={(e) => setSelectedProjectId(e.target.value)}>
+                  {projects.map(p => <MenuItem key={p._id} value={p._id}>{p.name}</MenuItem>)}
+                </Select>
+              </FormControl>
+              <Button variant="outlined" component="label" fullWidth startIcon={uploadingDoc ? <CircularProgress size={20} /> : <AddIcon />}>
+                {uploadingDoc ? 'Procesando Archivo...' : 'Seleccionar Archivo e Indexar'}
+                <input type="file" hidden accept=".docx,.pdf" onChange={handleUploadDocument} />
+              </Button>
+            </Paper>
+
+            <Typography variant="h6" gutterBottom>Generador Dinámico sin Plantillas</Typography>
+            <Paper elevation={2} sx={{ p: 2 }}>
+               <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+                Redacta contratos o demandas desde cero utilizando inteligencia artificial y tu base jurídica.
+              </Typography>
+              <Stack spacing={2}>
+                <TextField label="Nombre del Archivo (sin extensión)" value={documentName} onChange={(e) => setDocumentName(e.target.value)} fullWidth />
+                <FormControl fullWidth>
+                  <InputLabel>Asignar a Asunto</InputLabel>
+                  <Select value={selectedProjectId} label="Asignar a Asunto" onChange={(e) => setSelectedProjectId(e.target.value)}>
+                    {projects.map(p => <MenuItem key={p._id} value={p._id}>{p.name}</MenuItem>)}
+                  </Select>
+                </FormControl>
+                <TextField label="Tipo de Documento (Ej. Amparo, Contrato)" value={dynamicDocType} onChange={(e) => setDynamicDocType(e.target.value)} fullWidth />
+                <TextField label="Hechos, Pretensiones o Detalles" value={dynamicTopic} onChange={(e) => setDynamicTopic(e.target.value)} fullWidth multiline rows={4} placeholder="Describe el contexto del caso para que el agente inicie la redacción..." />
+                <Button variant="contained" color="primary" onClick={handleGenerateDynamic} disabled={loading} className="light-metal-btn-rect">
+                  {loading ? <CircularProgress size={24} /> : "Redactar y Exportar a DOCX / PDF"}
+                </Button>
+              </Stack>
+            </Paper>
+          </Grid>
+          
+          <Grid item xs={12} md={6}>
+            <Typography variant="h6" gutterBottom>Tus Archivos y Documentos Generados</Typography>
+            <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+              <FormControlLabel control={<Switch checked={showArchivedDocuments} onChange={(e) => setShowArchivedDocuments(e.target.checked)} />} label="Mostrar archivados" />
+              <IconButton onClick={fetchGeneratedDocuments} size="small" title="Actualizar lista">
+                <RefreshIcon />
+              </IconButton>
+            </Stack>
+            <Paper elevation={2} sx={{ p: 2, maxHeight: '75vh', overflow: 'auto' }}>
+              {loading ? <Box sx={{ p: 2, textAlign: 'center' }}><CircularProgress /></Box> : generatedDocuments.length > 0 ? (
+                <List>{generatedDocuments.map(doc => (
+                  <ListItem
+                    key={doc._id}
+                    secondaryAction={
+                      <Stack direction="row" spacing={0.5}>
+                        <IconButton edge="end" aria-label="open" onClick={async () => {
+                          try {
+                            const response = await apiClient.get(`/documents/${doc._id}/download`, { responseType: 'blob' });
+                            const url = window.URL.createObjectURL(new Blob([response.data]));
+                            const link = document.createElement('a');
+                            link.href = url;
+                            link.setAttribute('download', doc.file_name); 
+                            document.body.appendChild(link);
+                            link.click();
+                            link.remove();
+                            window.URL.revokeObjectURL(url);
+                          } catch (err) {
+                            setError('Error al descargar el documento.');
+                          }
+                        }}>
+                          <FolderOpenIcon />
+                        </IconButton>
+                        <IconButton edge="end" aria-label="archive" onClick={() => handleArchiveToggleDocument(doc._id, doc.is_archived)}>
+                          {doc.is_archived ? <UnarchiveIcon /> : <ArchiveIcon />}
+                        </IconButton>
+                        <IconButton edge="end" aria-label="delete" onClick={() => handleDeleteDocument(doc._id)}>
+                          <DeleteIcon />
+                        </IconButton>
+                      </Stack>
+                    }
+                  >
+                    <ListItemText
+                      primary={doc.file_name}
+                      secondary={`Asunto: ${projects.find(p => p._id === doc.project_id)?.name || 'N/A'}`}
+                    />
+                  </ListItem>
+                ))}</List>
+              ) : (
+                <Typography color="text.secondary">Aún no hay documentos.</Typography>
+              )}
+            </Paper>
+          </Grid>
+        </Grid>
+      )}
+
+      {/* The SourceManagement component used to be rendered here for tab === 3 */}
 
       {/* Render the ChatWidget */}
       <ChatWidget />

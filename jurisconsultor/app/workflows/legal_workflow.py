@@ -53,8 +53,10 @@ def process_legal_consultation(consulta: str, tenant_id: str) -> dict:
             "adversarial_feedback": adversarial
         }
         
-    # 5. Redaccion
-    documento = RedaccionAgent().execute(sintesis, adversarial)
+    # 5. Redaccion - passing tipo_documento
+    tipo_documento = plan.get("tipo_documento")
+    documento = RedaccionAgent().execute(sintesis, adversarial, tipo_documento=tipo_documento)
+    
     documento["citas"] = [{"es_primaria": True, "url": "http://g", "vigente": True}]
     documento["coherencia_valida"] = True
     documento["formato"] = "Estructura I-V"
