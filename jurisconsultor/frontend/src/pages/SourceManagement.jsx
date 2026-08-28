@@ -377,6 +377,9 @@ function SourceList() {
                                 <MenuItem value="generic_html">HTML Genérico</MenuItem>
                                 <MenuItem value="ordenjuridico_special">Orden Jurídico Especial</MenuItem>
                                 <MenuItem value="discovery_ordenjuridico">Descubrimiento (Semilla)</MenuItem>
+                                <MenuItem value="discovery_congresoags">Descubrimiento Congreso AGS</MenuItem>
+                                <MenuItem value="discovery_congresobc">Descubrimiento Congreso BC</MenuItem>
+                                <MenuItem value="discovery_congresobcs">Descubrimiento Congreso BCS</MenuItem>
                             </Select>
                         </FormControl>
                         <TextField label="URL Directa de PDF (opcional)" name="pdf_direct_url" value={currentSource?.pdf_direct_url || ''} onChange={handleSourceChange} fullWidth />

@@ -118,6 +118,12 @@ def create_source(
     created_source = db[SOURCES_COLLECTION].find_one({"_id": result.inserted_id})
     return ScrapingSourceInDB(**created_source)
 
+# Alias para /api/sources (sin slash final): evita el redirect 307 que
+# rompía el POST del frontend (apiClient.post('/sources') -> /api/sources).
+@router.post("", response_model=ScrapingSourceInDB, status_code=status.HTTP_201_CREATED, include_in_schema=False)
+def create_source_no_slash(source: ScrapingSourceCreate, db: Database = Depends(get_db)):
+    return create_source(source, db)
+
 @router.get("/", response_model=List[ScrapingSourceInDB])
 def list_sources(
     type_filter: Optional[str] = None, 
@@ -135,6 +141,11 @@ def list_sources(
     
     sources = db[SOURCES_COLLECTION].find(query)
     return [ScrapingSourceInDB(**s) for s in sources]
+
+# Alias para /api/sources (sin slash final), evita el 307 en el GET del frontend.
+@router.get("", response_model=List[ScrapingSourceInDB], include_in_schema=False)
+def list_sources_no_slash(type_filter: Optional[str] = None, db: Database = Depends(get_db)):
+    return list_sources(type_filter, db)
 
 @router.get("/{source_id}", response_model=ScrapingSourceInDB)
 def get_source(source_id: PyObjectId, db: Database = Depends(get_db)):

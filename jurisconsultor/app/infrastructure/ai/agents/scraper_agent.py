@@ -67,6 +67,54 @@ async def scan_page_node(state: ScraperState):
     scraper_type = state.get('scraper_type', 'generic')
     logger.info(f"Scanning {url} with strategy {scraper_type}...")
 
+    # --- Estrategias específicas por sitio (HTTP directo, sin navegador) ---
+    # Congreso de Aguascalientes: /descargarPdf/<id> (sin extensión)
+    if scraper_type == 'discovery_congresoags':
+        from scripts.discover_congresoags import scrape_congresoags
+        laws_data = scrape_congresoags(url)
+        candidates = [{
+            "name": l["name"],
+            "selector_id": None,
+            "href": l["pdf_url"],
+            "original_url": url,
+            "pdf_url": l["pdf_url"],   # Ya resuelto: descarga directa
+            "status": "resolved",
+        } for l in laws_data]
+        logger.info(f"Estrategia congresoags: {len(candidates)} leyes encontradas.")
+        return {"laws": candidates, "logs": [f"CongresoAGS: {len(candidates)} leyes."]}
+
+    # Congreso de Baja California: archivos .PDF directos por TOMOS
+    if scraper_type == 'discovery_congresobc':
+        from scripts.discover_congresobc import scrape_congresobc
+        laws_data = scrape_congresobc(url)
+        candidates = [{
+            "name": l["name"],
+            "selector_id": None,
+            "href": l["pdf_url"],
+            "original_url": url,
+            "pdf_url": l["pdf_url"],   # Ya resuelto: descarga directa
+            "status": "resolved",
+        } for l in laws_data]
+        logger.info(f"Estrategia congresobc: {len(candidates)} leyes encontradas.")
+        return {"laws": candidates, "logs": [f"CongresoBC: {len(candidates)} leyes."]}
+
+    # Congreso de Baja California Sur: Joomla con páginas de detalle (?id=NNNN)
+    # y archivos .doc/.pdf en cada detalle (crawl de 2 niveles).
+    if scraper_type == 'discovery_congresobcs':
+        from scripts.discover_congresobcs import scrape_congresobcs
+        laws_data = scrape_congresobcs(url)
+        candidates = [{
+            "name": l["name"],
+            "selector_id": None,
+            "href": l["file_url"] or "",
+            "original_url": url,
+            "pdf_url": l["file_url"] or "",
+            "status": "resolved" if l["file_url"] else "pdf_not_found",
+        } for l in laws_data]
+        n_ok = sum(1 for c in candidates if c["status"] == "resolved")
+        logger.info(f"Estrategia congresobcs: {len(candidates)} leyes, {n_ok} con archivo.")
+        return {"laws": candidates, "logs": [f"CongresoBCS: {len(candidates)} leyes ({n_ok} con archivo)."]}
+
     selector = "a"
     if scraper_type == 'discovery_ordenjuridico':
         selector = "#resultado1 a, #resultado2 a"
@@ -109,12 +157,18 @@ async def scan_page_node(state: ScraperState):
 async def filter_laws_node(state: ScraperState):
     """
     Uses LLM to verify and normalize the found items.
+    Las leyes ya resueltas (estrategias específicas por sitio) pasan sin filtrar.
     """
     candidates = state['laws']
     logger.info(f"Filtering {len(candidates)} candidates with heuristics & LLM...")
 
     if not candidates:
         return {"laws": []}
+
+    # Si todas vienen ya resueltas (discovery_congresoags/bc), no hace falta LLM
+    if all(c.get('status') == 'resolved' and c.get('pdf_url') for c in candidates):
+        logger.info(f"Todas las {len(candidates)} leyes ya están resueltas; omitiendo filtro LLM.")
+        return {"laws": candidates}
 
     llm = get_llm()
     valid_laws = []
@@ -177,6 +231,10 @@ async def resolve_pdfs_node(state: ScraperState):
     logger.info(f"Resolve PDFs Node: Processing {len(laws)} laws.") # TRACE
     for i, law in enumerate(laws):
         logger.info(f"Law {i}: Name='{law['name']}' Href='{law.get('href')}' ID='{law['selector_id']}'") # TRACE
+        # Las estrategias específicas ya entregan el PDF resuelto
+        if law.get('status') == 'resolved' and law.get('pdf_url'):
+            updated_laws.append(law)
+            continue
         if law.get('href') or law['selector_id']:
             # Try to resolve PDF using href first, then ID logic
             pdf_url = await resolve_law_pdf_url(state['url'], law['name'], law['selector_id'], law.get('href'))
@@ -226,7 +284,9 @@ async def update_db_node(state: ScraperState):
                 "name": law['name'],
                 "url": law['original_url'],
                 "pdf_direct_url": law['pdf_url'],
-                "scraper_type": "ordenjuridico_special",
+                # pdf_direct_url presente => run_scraper lo descarga (Prioridad 0),
+                # sin importar el scraper_type concreto.
+                "scraper_type": "generic_html",
                 "last_seen_at": datetime.utcnow()
             }
 
