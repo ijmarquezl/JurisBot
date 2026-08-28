@@ -11,7 +11,8 @@ def test_orchestrator_initialization():
 def test_orchestrator_execute_civil():
     agent = OrchestratorAgent()
     mock_response = '{"area_derecho": "civil", "agentes_requeridos": ["normativo", "procedimental"], "plan_trabajo": [{"paso": 1, "agente": "normativo", "tarea": "leyes"}], "prioridad": "estándar"}'
-    agent.llm.invoke = MagicMock(return_value=AIMessage(content=mock_response))
+    agent.llm = MagicMock()
+    agent.llm.invoke.return_value = AIMessage(content=mock_response)
     
     task = {"type": "consultation", "consulta": "divorcio incausado en queretaro"}
     result = agent.execute(task)
@@ -24,7 +25,8 @@ def test_orchestrator_execute_civil():
 def test_orchestrator_execute_laboral():
     agent = OrchestratorAgent()
     mock_response = '{"area_derecho": "laboral", "agentes_requeridos": ["normativo", "procedimental"], "plan_trabajo": [{"paso": 1, "agente": "normativo", "tarea": "leyes"}], "prioridad": "estándar"}'
-    agent.llm.invoke = MagicMock(return_value=AIMessage(content=mock_response))
+    agent.llm = MagicMock()
+    agent.llm.invoke.return_value = AIMessage(content=mock_response)
     
     task = {"type": "consultation", "consulta": "despido injustificado laboral"}
     result = agent.execute(task)

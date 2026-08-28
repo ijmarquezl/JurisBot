@@ -10,7 +10,8 @@ def test_redaccion_initialization():
 
 def test_redaccion_execute_low_risk():
     agent = RedaccionAgent()
-    agent.llm.invoke = MagicMock(return_value=AIMessage(content="# Dictamen Legal\\nI. Antecedentes\\nSin novedades."))
+    agent.llm = MagicMock()
+    agent.llm.invoke.return_value = AIMessage(content="# Dictamen Legal\\nI. Antecedentes\\nSin novedades.")
 
     sintesis = {"sintesis_argumento": "Este es el argumento."}
     adversarial = {"nivel_riesgo": "bajo"}
@@ -21,7 +22,8 @@ def test_redaccion_execute_low_risk():
 
 def test_redaccion_execute_high_risk():
     agent = RedaccionAgent()
-    agent.llm.invoke = MagicMock(return_value=AIMessage(content="# Dictamen Legal\\n**ADVERTENCIA DE RIESGO ALTO**\\nFalla A detectada."))
+    agent.llm = MagicMock()
+    agent.llm.invoke.return_value = AIMessage(content="# Dictamen Legal\\n**ADVERTENCIA DE RIESGO ALTO**\\nFalla A detectada.")
 
     sintesis = {"sintesis_argumento": "Este es el argumento."}
     adversarial = {"nivel_riesgo": "alto", "escenarios_riesgo": ["Falla A", "Falla B"]}

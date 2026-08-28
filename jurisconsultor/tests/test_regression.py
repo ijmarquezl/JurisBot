@@ -37,7 +37,7 @@ mock_db = MagicMock()
 
 # ... imports ...
 from datetime import datetime
-from jurisconsultor.app.security import get_password_hash # Import this to generate hash
+from infrastructure.web.security import get_password_hash # Import this to generate hash
 
 # ObjectId Helpers (Valid Hex Strings)
 USER_ID = "507f1f77bcf86cd799439011"
@@ -91,7 +91,7 @@ mock_db.tasks.insert_one.return_value = MagicMock(inserted_id=TASK_ID)
 # 3. Now import the app
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
-from jurisconsultor.app.main import app
+from infrastructure.web.main import app
 
 # Setup Test Client
 client = TestClient(app)

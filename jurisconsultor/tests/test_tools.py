@@ -4,7 +4,10 @@ import json
 from unittest.mock import MagicMock, PropertyMock
 
 # Import the function to be tested
-from app.tools import get_template_placeholders
+from infrastructure.ai.legacy_tools import get_template_placeholders, set_tenant_id
+
+# The tool requires a tenant context (like the agent tool_node sets it)
+set_tenant_id("test_tenant")
 
 # Mock the dependencies that are not available in the test environment
 import sys
@@ -43,7 +46,7 @@ def mock_docx_document(mocker):
     mock_table.rows = [mock_row]
     mock_doc.tables = [mock_table]
 
-    mocker.patch('app.tools.docx.Document', return_value=mock_doc)
+    mocker.patch('infrastructure.ai.legacy_tools.docx.Document', return_value=mock_doc)
     return mock_doc
 
 def test_get_placeholders_robust(mocker, mock_docx_document):
@@ -84,7 +87,7 @@ def test_get_placeholders_no_placeholders(mocker):
     mock_doc.paragraphs = [mock_para]
     mock_doc.tables = []
     
-    mocker.patch('app.tools.docx.Document', return_value=mock_doc)
+    mocker.patch('infrastructure.ai.legacy_tools.docx.Document', return_value=mock_doc)
     mocker.patch('os.path.exists', return_value=True)
 
     result_json = get_template_placeholders('no_placeholders.docx')
