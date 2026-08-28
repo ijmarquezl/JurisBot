@@ -21,7 +21,7 @@ def delete_document_by_source(source_name: str, db_type: str, company_id: str = 
     
     # Get database connections
     mongo_client = get_mongo_client()
-    db = mongo_client.jurisconsultor
+    db = mongo_client[os.getenv("MONGO_DB_NAME", "jurisconsultor")]
     documents_collection = db.documents
 
     if db_type == 'public':
@@ -66,7 +66,7 @@ def process_single_document(pdf_path: str, db_type: str, company_id: str = None)
     logger.info(f"Processing document: {pdf_path} for db: {db_type}, company: {company_id or 'public'}")
     
     mongo_client = get_mongo_client()
-    db = mongo_client.jurisconsultor
+    db = mongo_client[os.getenv("MONGO_DB_NAME", "jurisconsultor")]
     documents_collection = db.documents
 
     if db_type == 'public':
