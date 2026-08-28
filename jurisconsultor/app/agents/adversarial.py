@@ -7,7 +7,7 @@ class AdversarialAgent(BaseAgent):
     CLAVE para 0% alucinaciones.
     """
     
-    def __init__(self, model: str = "gpt-4o"):
+    def __init__(self, model: str = "openai/gpt-oss-20b:free"):
         super().__init__(model=model)
         
     def execute(self, task: Dict[str, Any], context: Dict[str, Any] = None) -> Dict[str, Any]:

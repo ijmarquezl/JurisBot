@@ -149,8 +149,9 @@ def analyzer_node(state):
     """
     drafting_data = state.get("drafting_data", {})
     if not drafting_data or drafting_data.get("status") == "error":
-        # Propagate the error or just stop
-        return {"messages": [AIMessage(content=drafting_data.get("error", "No pude analisar el ejemplo debido a un error previo."))] if drafting_data else []}
+        # Friendly message instead of leaking the raw error code
+        # ("no_examples_found") to the end user.
+        return {"messages": [AIMessage(content="No encontré ejemplos adecuados para redactar este documento. ¿Podrías ser más específico o subir un ejemplo?")]}
 
     example_content = drafting_data.get("example_content")
     

@@ -94,6 +94,11 @@
 - Actualización de diagramas de sistema y flujos de iteración entre agentes.
 - Fusión de las ramas de desarrollo y etiquetado oficial de la versión v0.2.0.
 
+** V 0.2.1 **
+- Carga de archivos .docx y .pdf
+- Análisis de archivos .docx y .pdf
+- Generación de documentos .docx y .pdf
+
 ** Next Steps **
 - Realizar pruebas de estrés a la base de datos de Postgres y MongoDB.
 - Optimizar el flujo conversacional y contexto de memoria del agente principal.

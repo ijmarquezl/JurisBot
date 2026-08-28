@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Any
 import os
+import logging
 from langchain_openai import ChatOpenAI
 
 logger = logging.getLogger(__name__)

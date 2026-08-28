@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 # This module defines the core logic for the tools the AI agent can use.
 
 API_BASE_URL = os.getenv("BACKEND_API_URL", "http://jurisbot-project-manager-mcp:8000")
-BASE_DOCS_PATH = "/docs" # Mounted volume path
+BASE_DOCS_PATH = os.getenv("DOCS_PATH", "/docs") # Mounted volume path (configurable for native runs)
 GENERATED_DOCS_PATH = "../documentos_generados/"
 
 _auth_token = None
@@ -147,8 +147,8 @@ def list_projects() -> str:
     """Lists all projects the user is a member of."""
     try:
         headers = _get_headers()
-        logger.debug(f"Calling API to list projects at {API_BASE_URL}/tools/list_projects with tenant_id: {_tenant_id}")
-        response = requests.get(f"{API_BASE_URL}/tools/list_projects?tenant_id={_tenant_id}", headers=headers)
+        logger.debug(f"Calling API to list projects at {API_BASE_URL}/api/projects/")
+        response = requests.get(f"{API_BASE_URL}/api/projects/", headers=headers, timeout=30)
         response.raise_for_status()
         json_response = response.json()
         logger.debug(f"API response for list_projects: {json_response}")
@@ -179,15 +179,13 @@ def create_project(project_name: str, project_description: str = None) -> str:
             return json.dumps({"error": f"Invalid token. {e}"})
 
         payload = {
-            "project_name": project_name,
-            "tenant_id": _tenant_id,
-            "user_email": user_email, # Add the user's email to the payload
-            "project_description": project_description
+            "name": project_name,
+            "description": project_description,
         }
-        response = requests.post(f"{API_BASE_URL}/tools/create_project", headers=headers, json=payload)
+        response = requests.post(f"{API_BASE_URL}/api/projects/", headers=headers, json=payload, timeout=30)
         response.raise_for_status()
         project_data = response.json()
-        return json.dumps({"success": True, "project_id": project_data["project_id"], "project_name": project_data["project_name"]})
+        return json.dumps({"success": True, "project_id": project_data.get("_id") or project_data.get("id"), "project_name": project_data.get("name")})
     except Exception as e:
         return json.dumps({"error": f"Failed to create project. {e}"})
 
@@ -198,13 +196,12 @@ def create_new_task(project_id: str, title: str, description: str = None) -> str
         payload = {
             "project_id": project_id,
             "title": title,
-            "tenant_id": _tenant_id,
             "description": description
         }
-        response = requests.post(f"{API_BASE_URL}/tools/create_task", headers=headers, json=payload)
+        response = requests.post(f"{API_BASE_URL}/api/tasks/", headers=headers, json=payload, timeout=30)
         response.raise_for_status()
         task_data = response.json()
-        return json.dumps({"success": True, "task_id": task_data["task_id"], "task_title": task_data["task_title"]})
+        return json.dumps({"success": True, "task_id": task_data.get("_id") or task_data.get("id"), "task_title": task_data.get("title")})
     except Exception as e:
         return json.dumps({"error": f"Failed to create task. {e}"})
 
@@ -212,7 +209,7 @@ def list_tasks_for_project(project_id: str) -> str:
     """Lists all tasks for a given project via the backend API."""
     try:
         headers = _get_headers()
-        response = requests.get(f"{API_BASE_URL}/tools/list_tasks_for_project?project_id={project_id}&tenant_id={_tenant_id}", headers=headers)
+        response = requests.get(f"{API_BASE_URL}/api/tasks/project/{project_id}", headers=headers, timeout=30)
         response.raise_for_status()
         return json.dumps(response.json())
     except Exception as e:

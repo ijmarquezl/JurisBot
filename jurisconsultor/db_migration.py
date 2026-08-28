@@ -24,6 +24,15 @@ def main(db_type: str, vector_size: int):
         print(f"{db_type.upper()}_POSTGRES_URI environment variable not set.")
         return
 
+    # If the vector size was not provided explicitly, derive it from the
+    # configured embedding model so the table dimension always matches the
+    # vectors the ingestion pipeline will insert.
+    if vector_size is None:
+        from sentence_transformers import SentenceTransformer
+        model = SentenceTransformer(os.getenv("EMBEDDING_MODEL_NAME", "all-MiniLM-L6-v2"))
+        vector_size = model.get_sentence_embedding_dimension()
+        print(f"Derived vector size {vector_size} from EMBEDDING_MODEL_NAME.")
+
     try:
         conn = psycopg2.connect(postgres_uri)
         cur = conn.cursor()
@@ -69,7 +78,7 @@ def main(db_type: str, vector_size: int):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run database migrations.")
     parser.add_argument("db_type", type=str, choices=['public', 'private'], help="The type of database to migrate ('public' or 'private').")
-    parser.add_argument("--vector-size", type=int, default=384, help="The dimension of the embedding vectors.")
+    parser.add_argument("--vector-size", type=int, default=None, help="The dimension of the embedding vectors (default: derived from EMBEDDING_MODEL_NAME).")
     
     args = parser.parse_args()
     

@@ -8,7 +8,7 @@ from typing import List, Dict
 
 logger = logging.getLogger(__name__)
 
-EXAMPLES_DIR = "/app/ejemplos_legales"
+EXAMPLES_DIR = os.getenv("EXAMPLES_DIR", "/app/ejemplos_legales")
 
 def search_legal_examples(query: str) -> str:
     """

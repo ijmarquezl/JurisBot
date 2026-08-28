@@ -21,6 +21,10 @@ pydantic-core==2.20.1
 pytest
 pytest-mock
 
+# Async Task Queue (Celery + Redis broker)
+celery[redis]
+redis
+
 # LangGraph Dependencies
 langchain==0.2.11
 langgraph==0.2.38
@@ -33,3 +37,5 @@ tenacity==8.2.3
 playwright
 python-slugify
 langsmith
+fpdf2
+markdown

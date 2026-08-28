@@ -19,3 +19,22 @@ __pycache__/
 # Internal Prompts
 Monitoring.md
 PM_MCP.md
+
+# --- Demo instance (native) ---
+# Datos y caches NO versionables (7+ GB): solo se comparten los scripts.
+demo/venv/
+demo/hf/
+demo/mongodb/
+demo/postgres/
+demo/pw-browsers/
+demo/uv-cache/
+demo/uv-python/
+demo/pkgs/
+demo/run/
+
+# --- Leyes descargadas por el scraper (regenerables vía el botón) ---
+jurisconsultor/documentos_legales/ags_*
+jurisconsultor/documentos_legales/bc_*
+jurisconsultor/documentos_legales/bcs_*
+jurisconsultor/documentos_legales/ley-*
+jurisconsultor/documentos_legales/*-de-baja-california*

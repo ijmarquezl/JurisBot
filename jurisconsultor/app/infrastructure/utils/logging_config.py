@@ -36,6 +36,28 @@ LOGGING_CONFIG = {
             "handlers": ["console", "file"],
             "propagate": False,
         },
+        # NOTE: logger names must match the actual module __name__ values.
+        "infrastructure.ai.agents.graph_agent": {
+            "level": "DEBUG",
+            "handlers": ["console", "file"],
+            "propagate": False,
+        },
+        "infrastructure.ai.legacy_tools": {
+            "level": "DEBUG",
+            "handlers": ["console", "file"],
+            "propagate": False,
+        },
+        "infrastructure.ai.tools.drafter_tools": {
+            "level": "DEBUG",
+            "handlers": ["console", "file"],
+            "propagate": False,
+        },
+        "infrastructure.ai.agents.drafter_nodes": {
+            "level": "INFO",
+            "handlers": ["console", "file"],
+            "propagate": False,
+        },
+        # Legacy names kept for backwards compatibility
         "graph_agent": {
             "level": "DEBUG",
             "handlers": ["console", "file"],

@@ -14,7 +14,12 @@ from scripts.legal_scraper import process_single_document, delete_document_by_so
 logger = logging.getLogger(__name__)
 
 SOURCES_COLLECTION = "scraping_sources"
-PDF_DIRECTORY = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'documentos_legales'))
+# Directorio donde se guardan los PDFs descargados. Por defecto la carpeta del
+# corpus (mismo lugar que DOCS_PATH de legacy_tools / el volumen /docs de Docker).
+PDF_DIRECTORY = os.getenv(
+    "DOCS_PATH",
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "documentos_legales")),
+)
 
 def truncate_filename(filename: str, max_length: int = 200) -> str:
     """Truncates a filename to a maximum length, preserving the extension."""

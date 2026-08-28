@@ -11,6 +11,17 @@ from fastapi.responses import FileResponse
 from domain.models.models import GeneratedDocumentInDB, UserInDB, PyObjectId
 from infrastructure.web.dependencies import get_db, get_current_user
 from infrastructure.utils.utils import answer_with_rag, search_raw_documents, get_public_db_conn # New import
+from infrastructure.ai.agents.drafting_agent import draft_legal_document
+from infrastructure.utils.document_builder import build_document
+from fastapi import UploadFile, File, Form
+import shutil
+import uuid
+import sys
+# legal_scraper lives in the `scripts` package (sibling of `app`), so the
+# parent of `scripts/` must be on sys.path (PYTHONPATH=/app in Docker, or the
+# project root when running natively). Same pattern as web_downloader.py.
+from scripts.legal_scraper import process_single_document
+
 import infrastructure.ai.legacy_tools as legacy_tools
 
 logger = logging.getLogger(__name__)
@@ -30,10 +41,108 @@ class GenerateFromFormRequest(BaseModel):
     document_name: str
     context: Dict[str, Any]
 
+class GenerateDocumentRequest(BaseModel):
+    project_id: PyObjectId
+    document_name: str
+    topic: str
+    document_type: str = "Escrito Legal"
+
 # --- Endpoints ---
 
 # Sub-endpoints moved to templates.py
 # list_templates and get_placeholders deleted from here.
+
+@router.post("/generate", response_model=List[GeneratedDocumentInDB])
+def generate_dynamic_document(
+    request: GenerateDocumentRequest,
+    db: Database = Depends(get_db),
+    current_user: UserInDB = Depends(get_current_user),
+):
+    """Generates a legal document dynamically without templates."""
+    logger.info(f"Generating dynamic document: {request.document_name}")
+    
+    # 1. Use RAG to get the legal context
+    rag_query = f"Based on the following facts: {request.topic}, what legal articles and laws are applicable? Provide a concise list of articles and laws."
+    legal_context = answer_with_rag(rag_query)
+    
+    # 2. Use the drafting agent to write the document in Markdown
+    markdown_content = draft_legal_document(
+        topic=request.topic,
+        context=legal_context,
+        document_type=request.document_type
+    )
+    
+    # 3. Build DOCX and PDF from the Markdown
+    output_dir = os.path.join(os.getcwd(), "documentos_generados")
+    docx_path, pdf_path = build_document(markdown_content, request.document_name, output_dir)
+    
+    # 4. Save records to the database
+    docs_to_insert = [
+        {
+            "file_name": f"{request.document_name}.docx",
+            "project_id": request.project_id,
+            "owner_email": current_user.email,
+            "file_path": docx_path,
+            "is_archived": False,
+        },
+        {
+            "file_name": f"{request.document_name}.pdf",
+            "project_id": request.project_id,
+            "owner_email": current_user.email,
+            "file_path": pdf_path,
+            "is_archived": False,
+        }
+    ]
+    
+    result_docs = []
+    for doc_data in docs_to_insert:
+        insert_result = db.generated_documents.insert_one(doc_data)
+        created_doc = db.generated_documents.find_one({"_id": insert_result.inserted_id})
+        result_docs.append(GeneratedDocumentInDB(**created_doc))
+        
+    return result_docs
+
+@router.post("/upload", response_model=GeneratedDocumentInDB)
+def upload_document(
+    project_id: PyObjectId = Form(...),
+    file: UploadFile = File(...),
+    db: Database = Depends(get_db),
+    current_user: UserInDB = Depends(get_current_user),
+):
+    """Uploads a .pdf or .docx document, processes it for RAG, and saves the file."""
+    logger.info(f"Handling upload for file: {file.filename}")
+    
+    file_extension = os.path.splitext(file.filename)[1]
+    unique_filename = f"{uuid.uuid4()}{file_extension}"
+    upload_dir = os.path.join(os.getcwd(), "documentos_subidos")
+    os.makedirs(upload_dir, exist_ok=True)
+    file_path = os.path.join(upload_dir, unique_filename)
+    
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    company_id = str(current_user.company_id) if current_user.company_id else None
+    
+    try:
+        process_single_document(file_path, db_type="private" if company_id else "public", company_id=company_id)
+    except Exception as e:
+        logger.error(f"Error processing document: {e}")
+        # Could decide to delete the file if processing fails
+        # os.remove(file_path)
+        raise HTTPException(status_code=500, detail="Error processing the document for RAG indexing.")
+    
+    doc_data = {
+        "file_name": file.filename,
+        "project_id": project_id,
+        "owner_email": current_user.email,
+        "file_path": file_path,
+        "is_archived": False,
+    }
+    insert_result = db.generated_documents.insert_one(doc_data)
+    created_doc = db.generated_documents.find_one({"_id": insert_result.inserted_id})
+    
+    return GeneratedDocumentInDB(**created_doc)
+
 
 @router.post("/generate_from_form", response_model=GeneratedDocumentInDB)
 def generate_document_from_form(

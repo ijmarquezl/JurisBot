@@ -9,7 +9,9 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8000', // Your backend server address
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ''), // Remove /api prefix when forwarding
+        // NOTE: no `rewrite` here. The backend serves routes under the /api
+        // prefix (include_router(prefix="/api")), so the prefix must be kept
+        // when forwarding to the backend, matching the production nginx config.
       },
     },
   },

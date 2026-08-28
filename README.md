@@ -4,8 +4,8 @@ Jurisconsultor es un sistema avanzado impulsado por inteligencia artificial dise
 
 ## Novedades en v0.2
 - **Arquitectura Multi-Agente**: 8 agentes especializados (Orquestador, Normativo, Procedimental, Doctrina, Síntesis, Adversarial, Redacción y Document Manager).
-- **Procesamiento Asíncrono**: Integración con **Celery** y **Redis** para manejar tareas complejas en segundo plano sin bloquear la aplicación.
-- **Soporte Multi-LLM**: Integración nativa con **OpenRouter** (ej. `openai/gpt-oss-20b:free`) y **Anthropic** (Claude), permitiendo flexibilidad en la elección del modelo de IA subyacente.
+- **Procesamiento Asíncrono**: Integración con **Celery** y **Redis** para manejar tareas complejas en segundo plano sin bloquear la aplicación. *Nota: `celery`/`redis` ya están en `requirements.txt`; el worker de Celery aún no está definido en `docker-compose.yml`, la ejecución actual del workflow es síncrona.*
+- **Soporte Multi-LLM**: Integración nativa con **OpenRouter** y **Anthropic** (Claude), permitiendo flexibilidad en la elección del modelo de IA subyacente. *Nota: el modelo gratuito `openai/gpt-oss-20b:free` de v0.2 ya no existe en OpenRouter; un sustituto free probado es `minimax/minimax-m3:free` (configurable vía `LLM_MODEL_NAME`).*
 - **Quality Gates**: 5 niveles de validación automatizada por un agente adversario para garantizar cero alucinaciones.
 
 ## Diagramas de Arquitectura y Flujo

@@ -1,4 +1,5 @@
 import logging
+import asyncio
 from logging.config import dictConfig
 from infrastructure.utils.logging_config import LOGGING_CONFIG
 
@@ -30,7 +31,7 @@ from infrastructure.db.db_manager import close_db_connection
 app = FastAPI(
     title="Jurisconsultor API",
     description="API for the Jurisconsultor AI agent.",
-    version="0.6.0", # Version bump for new DB architecture
+    version="0.2.1", # Next release per Roadmap (v0.2.1)
 )
 
 # --- CORS Middleware ---
@@ -163,7 +164,11 @@ async def ask(
     
     try:
         logger.info(f"[IN TRY] Invoking graph with inputs: messages={len(inputs['messages'])}, company_id={inputs['company_id']}")
-        final_state = graph.invoke(inputs, config=config)
+        # graph.invoke is BLOCKING: run it in a worker thread so the event loop
+        # stays free. Otherwise, when an agent tool calls back into this same
+        # backend (e.g. list_projects -> /api/projects/), the request deadlocks
+        # because the loop is busy running the graph.
+        final_state = await asyncio.to_thread(graph.invoke, inputs, config)
         logger.info(f"[AFTER INVOKE] Graph returned. Type: {type(final_state)}")
         if final_state and final_state.get("messages"):
             logger.info(f"[MESSAGES] Number of messages in final_state: {len(final_state['messages'])}")

@@ -161,7 +161,8 @@ llm_with_tools = llm.bind_tools(agent_tools)
 manager_system_prompt = """Eres un asistente legal experto y tu objetivo es ayudar al usuario. Te comunicarás y pensarás exclusivamente en ESPAÑOL.
 
 **REGLAS CRÍTICAS:**
-0.  **USO DE HERRAMIENTAS OBLIGATORIO:** Para cualquier solicitud que implique una acción (crear, listar, buscar, etc.), **DEBES** usar una herramienta. Solo responde directamente si el usuario está teniendo una conversación casual. Si la pregunta es un saludo o una pregunta casual como "¿quién eres?" o "¿cómo te llamas?", responde directamente.
+0.  **USO DE HERRAMIENTAS OBLIGATORIO:** Para cualquier solicitud que implique una acción (crear, listar, buscar, consultar estado, etc.), **DEBES** usar una herramienta. Solo responde directamente si el usuario está teniendo una conversación casual. Si la pregunta es un saludo o una pregunta casual como "¿quién eres?" o "¿cómo te llamas?", responde directamente.
+    **NUNCA respondas de memoria sobre datos del sistema** (proyectos, tareas, estados, documentos): si el usuario pregunta por ellos, primero llama a `list_projects` o `list_tasks_for_project` y responde SOLO con lo que devuelva la herramienta. Si no conoces el `project_id`, obtén la lista de proyectos primero.
     **PROCESAMIENTO DE RESULTADOS DE HERRAMIENTAS:** Después de ejecutar una herramienta y recibir su resultado (Observación), tu siguiente paso DEBE ser analizar esa Observación. Si la Observación contiene la respuesta a la pregunta original del usuario, formula una respuesta clara y concisa para el usuario, comenzando con 'FINAL_ANSWER: '. Si la Observación no es suficiente, puedes decidir si necesitas otra herramienta o más información.
 1.  **IDIOMA:** Todo tu razonamiento y tu respuesta final DEBEN ser en ESPAÑOL.
 2.  **USO DE RAG:** Para cualquier pregunta que involucre conceptos legales, leyes, artículos o interpretaciones jurídicas, **DEBES** usar la herramienta `answer_legal_question_with_rag`.
@@ -172,9 +173,55 @@ manager_system_prompt = """Eres un asistente legal experto y tu objetivo es ayud
 6.  **DELEGACIÓN DE REDACCIÓN:** Si el usuario solicita **redactar, escribir, crear o generar** un documento legal formal (como demandas, contratos, cartas, avisos), **DEBES** usar la herramienta `trigger_drafting` inmediatamente. NO intentes redactarlo tú mismo ni te niegues a hacerlo. La herramienta `trigger_drafting` es el especialista encargado de esta tarea.
 """
 
+def _msg_type(m):
+    """Normalized message type for langchain objects OR serialized dicts."""
+    if isinstance(m, dict):
+        return str(m.get("type") or m.get("_type") or "")
+    return str(getattr(m, "type", "") or type(m).__name__)
+
+
+def _msg_content(m):
+    if isinstance(m, dict):
+        return m.get("content")
+    return getattr(m, "content", None)
+
+
+def _msg_tool_calls(m):
+    if isinstance(m, dict):
+        return m.get("tool_calls") or m.get("tool_call")
+    return getattr(m, "tool_calls", None)
+
+
+def _conversation_messages(state):
+    """Conversation history for the LLM, without raw tool traffic.
+
+    Tool-call dispatchers (AI message with tool_calls and empty content) and
+    tool result messages are omitted: several tool-capable providers (e.g.
+    minimax via OpenRouter/GMICloud) reject a follow-up turn whose history
+    contains a tool result that does not exactly match the original tool call
+    ("tool call result does not follow tool call"), breaking the second turn of
+    a conversation. The assistant's final answer already summarizes the tool
+    result, so no user-visible information is lost.
+
+    Handles both langchain message objects and serialized dicts (as restored
+    by the MongoDB checkpointer).
+    """
+    msgs = []
+    for m in state["messages"]:
+        mtype = _msg_type(m).lower()
+        if "tool" in mtype:  # ToolMessage / tool result
+            continue
+        if _msg_tool_calls(m):
+            # Drop ANY message carrying tool_calls (even with a content
+            # preamble): a dangling tool_call without its matching result is
+            # rejected by tool-capable providers just like a stray tool result.
+            continue
+        msgs.append(m)
+    return msgs
+
 def manager_node(state: AgentState):
     """Invokes the LLM to determine the next action, with special handling for tool outputs."""
-    messages = [SystemMessage(content=manager_system_prompt)] + state["messages"]
+    messages = [SystemMessage(content=manager_system_prompt)] + _conversation_messages(state)
     
     # --- CHECK ACTIVE DRAFTING STATE ---
     # If we are in the middle of a drafting interview, bypass the Manager LLM entirely
@@ -202,8 +249,14 @@ def manager_node(state: AgentState):
         
         has_action = any(k in content_lower for k in drafting_keywords)
         has_legal = any(k in content_lower for k in legal_keywords)
+        # Do NOT hijack questions ("¿cuál es el estado del proyecto...?",
+        # "¿puedes redactar una demanda?"): mentioning a document is not the
+        # same as asking to draft one. The system prompt (rule 6) already
+        # mandates trigger_drafting for genuine drafting requests, so this
+        # interceptor only fires for plain imperatives as a safety net.
+        is_question = "?" in content_lower or "¿" in content_lower
         
-        if has_action and has_legal:
+        if has_action and has_legal and not is_question:
             logger.info(f"Drafter Interceptor: Detected drafting intent in '{last_msg.content}'. Forcing 'trigger_drafting'.")
             # Create a fake AI Message that "calls" the tool
             # The Router will see this and route to 'drafter_retriever' (because of our special edge logic for this tool)
@@ -238,7 +291,9 @@ def manager_node(state: AgentState):
             f"La herramienta ejecutada ha devuelto el siguiente resultado: "
             f"{last_tool_message.content}\n\n"
             f"Basándote en este resultado y en la pregunta original del usuario ('{original_human_message_content}'), "
-            f"formula una respuesta final clara y concisa. Tu respuesta DEBE comenzar con 'FINAL_ANSWER: '."
+            f"formula una respuesta final clara y concisa. Tu respuesta DEBE comenzar con 'FINAL_ANSWER: '.\n"
+            f"IMPORTANTE: si el resultado contiene identificadores internos (campos '_id' o 'id' de proyectos o tareas), "
+            f"consérvalos y menciónalos tal cual en tu respuesta, porque el usuario podrá referirse a ellos en mensajes futuros."
         ))
         
         # Append this forced prompt to the messages for the LLM
@@ -270,7 +325,26 @@ def manager_node(state: AgentState):
     logger.debug(f"Manager node invoking LLM with {len(messages)} messages")
     # response = llm_with_tools.invoke(messages)
     # Use Secure Inference
-    response = inference_service.secure_invoke(llm_with_tools.invoke, messages)
+    try:
+        response = inference_service.secure_invoke(llm_with_tools.invoke, messages)
+    except Exception as e:
+        # Some providers reject histories that mix tool traffic (e.g. minimax
+        # via OpenRouter: "tool call result does not follow tool call").
+        # Fall back to a minimal context: system prompt + the current user turn
+        # (+ last assistant content reply, if any) so the conversation never
+        # hard-fails on accumulated state.
+        logger.warning(f"LLM call failed with full history ({e}); retrying with minimal context.")
+        minimal = [SystemMessage(content=manager_system_prompt)]
+        for m in reversed(state["messages"]):
+            if "human" in _msg_type(m).lower():
+                minimal.append(m)
+                break
+        for m in reversed(state["messages"]):
+            mt = _msg_type(m).lower()
+            if ("ai" in mt or "aimessage" in mt) and _msg_content(m) and not _msg_tool_calls(m):
+                minimal.insert(1, m)
+                break
+        response = inference_service.secure_invoke(llm_with_tools.invoke, minimal)
     print(f"[DEBUG] LLM response type: {type(response)}")
     print(f"[DEBUG] LLM response content: {response.content}")
     print(f"[DEBUG] LLM response has tool_calls: {hasattr(response, 'tool_calls')}")
