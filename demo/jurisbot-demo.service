@@ -1,0 +1,15 @@
+[Unit]
+Description=JurisBot demo stack (MongoDB, PostgreSQL, backend FastAPI, frontend)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/home/ivan/Projects/AI_Projects/JurisBot
+ExecStart=/home/ivan/Projects/AI_Projects/JurisBot/demo/jurisbotctl start
+ExecStop=/home/ivan/Projects/AI_Projects/JurisBot/demo/jurisbotctl stop
+TimeoutStartSec=180
+
+[Install]
+WantedBy=default.target

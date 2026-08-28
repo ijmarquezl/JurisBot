@@ -1,0 +1,167 @@
+#!/usr/bin/env bash
+# ============================================================================
+# jurisbotctl — Control de la instancia DEMO de JurisBot (nativa, sin Docker)
+#
+# Uso:
+#   demo/jurisbotctl start     Levanta MongoDB, PostgreSQL, backend y frontend
+#   demo/jurisbotctl stop      Detiene todo
+#   demo/jurisbotctl status    Muestra qué está corriendo
+#   demo/jurisbotctl restart   Detiene y vuelve a levantar
+#
+# También puede usarse desde systemd (unidad de usuario) para auto-arranque:
+#   systemctl --user start/stop/restart jurisbot-demo
+# ============================================================================
+set -u
+CMD="${1:-}"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+RUN="$ROOT/demo/run"
+PGBIN="$ROOT/demo/postgres/root/usr/lib/postgresql/18/bin"
+PGDATA="$ROOT/demo/postgres/data"
+PGLOG="$ROOT/demo/postgres/log/pg.log"
+MONGO_BIN="$ROOT/demo/mongodb/bin/mongod"
+MONGO_DATA="$ROOT/demo/mongodb/data"
+MONGO_LOG="$ROOT/demo/mongodb/log/mongod.log"
+BACKEND_LOG="$RUN/backend.log"
+WEB_LOG="$RUN/web.log"
+MONGO_PID="$RUN/mongod.pid"
+BACKEND_PID="$RUN/backend.pid"
+WEB_PID="$RUN/web.pid"
+export LD_LIBRARY_PATH="$ROOT/demo/postgres/root/usr/lib/postgresql/18/lib:$ROOT/demo/postgres/root/usr/lib/x86_64-linux-gnu${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
+log()  { echo "[jurisbotctl] $*"; }
+port_up() { (exec 3<>"/dev/tcp/127.0.0.1/$1") 2>/dev/null && { exec 3>&-; return 0; } || return 1; }
+alive() { [ -f "$1" ] && kill -0 "$(cat "$1" 2>/dev/null)" 2>/dev/null; }
+
+usage() {
+    echo "Uso: $0 {start|stop|status|restart}"
+    exit 1
+}
+
+start() {
+    mkdir -p "$RUN" "$ROOT/demo/postgres/sock"
+    # --- MongoDB ---
+    if alive "$MONGO_PID" || port_up 27017; then
+        log "mongod ya está corriendo"
+    else
+        log "arrancando mongod..."
+        setsid "$MONGO_BIN" --dbpath "$MONGO_DATA" --logpath "$MONGO_LOG" \
+            --bind_ip 127.0.0.1 --port 27017 --pidfilepath "$MONGO_PID" \
+            >/dev/null 2>&1 < /dev/null &
+        disown
+    fi
+    # --- PostgreSQL ---
+    if port_up 5432; then
+        log "postgres ya está corriendo"
+    else
+        log "arrancando postgres..."
+        "$PGBIN/pg_ctl" -D "$PGDATA" -l "$PGLOG" \
+            -o "-p 5432 -c listen_addresses=127.0.0.1 -k $ROOT/demo/postgres/sock" start
+    fi
+    # --- Esperar servicios de datos ---
+    for i in $(seq 1 30); do
+        pg=0; mo=0
+        port_up 5432 && pg=1
+        port_up 27017 && mo=1
+        [ $pg -eq 1 ] && [ $mo -eq 1 ] && break
+        sleep 1
+    done
+    log "mongodb: $(port_up 27017 && echo UP || echo DOWN) | postgres: $(port_up 5432 && echo UP || echo DOWN)"
+    # --- Backend ---
+    if port_up 8000; then
+        log "backend ya está corriendo"
+    else
+        log "arrancando backend..."
+        set -a; source "$ROOT/demo/.env.demo"; set +a
+        export GROQ_API_KEY="${GROQ_API_KEY:-demo-ollama}"   # Ollama no exige clave real
+        export HF_HOME="$ROOT/demo/hf" PYTHONPATH=app:.
+        # Wrapper bash -c: registra el PID real ($$) y exec uvicorn con el mismo PID
+        (cd "$ROOT/jurisconsultor" && setsid bash -c \
+            "echo \$\$ > '$BACKEND_PID'; exec '$ROOT/demo/venv/bin/python' -m uvicorn \
+             infrastructure.web.main:app --host 127.0.0.1 --port 8000" \
+            >>"$BACKEND_LOG" 2>&1 < /dev/null & disown)
+    fi
+    # --- Frontend web ---
+    if port_up 8080; then
+        log "frontend ya está corriendo"
+    else
+        log "arrancando frontend..."
+        setsid "$ROOT/demo/venv/bin/python" "$ROOT/demo/serve_frontend.py" --port 8080 \
+            --pid-file "$WEB_PID" >>"$WEB_LOG" 2>&1 < /dev/null &
+        disown
+    fi
+    # --- Esperar backend/web ---
+    for i in $(seq 1 30); do
+        [ "$(port_up 8000 && port_up 8080 && echo 1 || echo 0)" = "1" ] && break
+        sleep 1
+    done
+    log "backend: $(port_up 8000 && echo UP || echo DOWN) | frontend: $(port_up 8080 && echo UP || echo DOWN)"
+    if port_up 8000 && port_up 8080; then
+        log "LISTA: abre http://127.0.0.1:8080 en el navegador"
+    else
+        log "ERROR: no se levantaron todos los servicios; revisa $BACKEND_LOG y $WEB_LOG"
+        exit 1
+    fi
+}
+
+stop() {
+    # --- Frontend y backend (por PID file; respaldo por puerto) ---
+    for spec in "$WEB_PID:8080" "$BACKEND_PID:8000"; do
+        pf="${spec%%:*}"; port="${spec#*:}"
+        if alive "$pf"; then
+            kill "$(cat "$pf")" 2>/dev/null
+            log "detenido $(basename "$pf" .pid)"
+        elif port_up "$port"; then
+            # Fallback: matar por PID del socket (procesos sin pid file)
+            victim=$(ss -tlnp 2>/dev/null | grep ":$port " | grep -oE "pid=[0-9]+" | head -1 | cut -d= -f2)
+            [ -n "$victim" ] && kill "$victim" 2>/dev/null && log "detenido por puerto $port (pid $victim)"
+        fi
+        rm -f "$pf"
+    done
+    sleep 2
+    # --- PostgreSQL ---
+    if port_up 5432; then
+        "$PGBIN/pg_ctl" -D "$PGDATA" -m fast stop >/dev/null 2>&1
+        log "detenido postgres"
+    fi
+    # --- MongoDB ---
+    if alive "$MONGO_PID"; then
+        kill "$(cat "$MONGO_PID")" 2>/dev/null
+        log "detenido mongod"
+    elif port_up 27017; then
+        victim=$(ss -tlnp 2>/dev/null | grep ":27017 " | grep -oE "pid=[0-9]+" | head -1 | cut -d= -f2)
+        [ -n "$victim" ] && kill "$victim" 2>/dev/null && log "detenido mongod por puerto (pid $victim)"
+    fi
+    rm -f "$MONGO_PID"
+    # --- Esperar a que TODOS los puertos se liberen (mongod tarda ~13s en
+    #     apagarse; si no esperamos, un start inmediato lo vería "vivo"). ---
+    for port in 8080 8000 27017 5432; do
+        for i in $(seq 1 40); do
+            port_up "$port" || break
+            sleep 1
+        done
+        if port_up "$port"; then
+            log "AVISO: el puerto $port sigue ocupado tras 40s (se fuerza cierre)"
+            victim=$(ss -tlnp 2>/dev/null | grep ":$port " | grep -oE "pid=[0-9]+" | head -1 | cut -d= -f2)
+            [ -n "$victim" ] && kill -9 "$victim" 2>/dev/null && log "forzado cierre del pid $victim"
+        fi
+    done
+    log "servicios detenidos"
+}
+
+status() {
+    echo "=== JurisBot demo — estado ==="
+    for spec in "27017:mongod:$MONGO_PID" "5432:postgres:-" "8000:backend:$BACKEND_PID" "8080:frontend:$WEB_PID"; do
+        port="${spec%%:*}"; rest="${spec#*:}"; name="${rest%%:*}"; pf="${rest#*:}"
+        state="UP"
+        port_up "$port" || state="DOWN"
+        printf "  %-9s puerto %-5s %s\n" "$name" "$port" "$state"
+    done
+}
+
+case "$CMD" in
+    start)   start ;;
+    stop)    stop ;;
+    restart) stop; start ;;
+    status)  status ;;
+    *)       usage ;;
+esac
